@@ -8,161 +8,131 @@ from src.loader import ImageContainer
 from src.preprocessing import *
 from src.segmentation import SegmentAnything
 
+import os
+import uuid
+import time
+import nd2
+import argparse
+from typing import List
+import numpy as np
+from src.loader import ND2Loader, ImageContainer, Node
+from src.visualization import ImageViewer
 
-
-def process_image(filename, pipeline):
-
-    print('===== FUNCTION process_image =====')
-
-    # load image from file
-    img = ImageContainer(filename)
-
-    print(type(img.image))
-    cv2.imshow(img.filename, img.image)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-
-
-    
-    # process image through pipeline
-    processed_image = pipeline.process(img)
-    
-    # save processed image to file or something
-    pass
-
-
-
-def get_min_and_max(img, saturated=0.35):
-    print('===== FUNCTION get_min_and_max =====')
-
-
-    histogram, bins = np.histogram(img.flatten(), bins=256, range=(img.min(), img.max()))
-
-    hmin, hmax = 0, 255
-    threshold = int(img.size * saturated / 200.0)
-    print('threshold: ', threshold)
-    count = 0
-    for i in range(len(histogram)):
-        count += histogram[i]
-        if count > threshold:
-            hmin = i
-            break
-    count = 0
-    for i in range(len(histogram)-1, -1, -1):
-        count += histogram[i]
-        if count > threshold:
-            hmax = i
-            break
-
-    bin_size = bins[1] - bins[0]
-
-    low_value = bins[hmin + 1] + hmin * bin_size
-    high_value = bins[hmax + 1] + hmax * bin_size
-
-    return low_value, high_value
-
-
-def auto_contrast(img):
+class Pipeline:
     """
-    Apply auto-contrast adjustment to an image.
+    A class representing a node-based pipeline executor.
+
+    Attributes:
+    ----------
+    nodes (List[Node]): A list of nodes in the pipeline.
+    current_node_index (int): The index of the current node being processed.
     """
+    def __init__(self, nodes: List[Node]):
+        # Initialize the pipeline with a list of nodes and a current node index
+        self.nodes = nodes
+        self.current_node_index = 0
 
-    # low_value = 1278.0
-    # high_value = 5931.0
+    def process_node(self, node):
+        # Get the current node and its inputs
+        inputs = self.get_inputs(node)
 
-    # low_value = 1254.84375
-    # high_value = 5970.1875
+        print('inputs for current node:')
+        print(inputs)
 
-    low_value, high_value = get_min_and_max(img)
+        # If the inputs are None or the node expects no inputs, continue processing
+        if node.check_valid_inputs(inputs):
+            start_time = time.time()
+            outputs = node.process(inputs)
+            print(outputs)
+            end_time = time.time()
+            node.execution_time = end_time - start_time
+            
+            # Check the node's outputs and handle them accordingly
+            if node.check_valid_outputs(outputs):
+                self.handle_outputs(node, outputs)
+            else:
+                # If the outputs are unexpected, prompt the user for action
+                print(f"Node '{node.name}' produced unexpected outputs.")
+                self.prompt_user(node)
+        else:
+            # If the inputs are unexpected, prompt the user for action
+            print(f"Node '{node.name}' received unexpected inputs.")
+            self.prompt_user(node)
+        
+    def process(self):
+        # Process the pipeline step by step
+        while self.current_node_index < len(self.nodes):
+            self.process_node(self.nodes[self.current_node_index])
+                
+    def get_inputs(self, node):
+        # Get the inputs for a node from the previous node's outputs or from user input
+        if node.valid_inputs is None:
+            return None
+        
+        print('getting inputs')
+        if self.current_node_index == 0:
+            print(f"Node '{node.name}' requires inputs.")
+            return node.get_user_inputs()
+        else:
+            print('getting prev node')
+            prev_node = self.nodes[self.current_node_index - 1]
+            print(prev_node)
+            print(prev_node.outputs)
+            if prev_node.outputs is None:
+                print(f"Node '{prev_node.name}' did not produce any outputs.")
+                self.prompt_user(prev_node)
+                return self.get_inputs(node)
+            elif node.inputs != prev_node.outputs.__class__:
+                print(f"Node '{prev_node.name}' produced outputs of unexpected type.")
+                self.prompt_user(prev_node)
+                return self.get_inputs(node)
+            else:
+                return prev_node.outputs
+                
+    def handle_outputs(self, node, outputs):
+        # Save the node's outputs and prompt the user for action
+        node.outputs = outputs
+        self.prompt_user(node)
+        
+    def prompt_user(self, node):
+        # Prompt the user for action (advance, repeat, or exit)
+        while True:
+            user_input = input(f"Node '{node.name}' completed. [A]dvance, [R]epeat, or [E]xit? ")
+            if user_input.lower() == "a":
+                self.current_node_index += 1
+                break
+            elif user_input.lower() == "r":
+                self.process_node(node)
+                break
+            elif user_input.lower() == "e":
+                self.current_node_index = len(self.nodes)
+                break
+            else:
+                print("Invalid input.")
 
-    print('low_value: ', low_value)
-    print('high_value: ', high_value)
 
-    # low_value = 1200
-    # high_value = 9600
 
-    # Scale the image to 0-255 range
-    scaled_image = (img - low_value) * (255.0 / (high_value - low_value))
-    scaled_image[scaled_image < 0] = 0
-    scaled_image[scaled_image > 255] = 255
-    scaled_image = scaled_image.astype(np.uint8)
 
-    return scaled_image
-
-  
 if __name__ == '__main__':
-    folder = r'C:\Users\rlpri\Downloads\input'
-    filenames = glob.glob(os.path.join(folder, '*.nd2'))
+    parser = argparse.ArgumentParser(description='Run the pipeline.')
+    parser.add_argument(
+        '--stepwise', 
+        action='store_true', 
+        default=True,
+        help='Run the pipeline step by step.'
+    )
+    args = parser.parse_args()
 
-    print((os.path.join(folder, '*.nd2')))
-
-    print(filenames)
+    filename = r'D:\python_projects\fishnet-old\input\wt.nd2'
 
     nodes = [
-        # set channel as
-        # SelectChannel(channel=1),
-        SegmentAnything(channel=1),
-        # CLAHEContrast(),
-        # ShowImage()
-    ]
+        ND2Loader(name="Loader", filename=filename),
+        ImageViewer(name="Viewer1"),
+    ] 
+
     pipeline = Pipeline(nodes)
-    
-    with Pool() as p:
-        p.starmap(process_image, [(filename, pipeline) for filename in filenames])
 
-
-
-# TODO: Build Pipeline from Config
-
-# def load_config(config_file):
-
-#     # print('===== FUNCTION load_config =====')
-
-#     with open(config_file) as f:
-#         config = json.load(f)
-    
-#     print(config)
-
-#     steps = []
-#     for step_config in config["steps"]:
-#         # print(step_config)
-
-#         module_name = importlib.import_module(step_config["module"])
-#         # print(module_name)
-
-#         class_name = getattr(module_name, step_config["class"])
-#         # print(class_name)
-
-#         parameters = step_config.get("parameters")
-#         # print(parameters)
-
-#         instance = class_name(**parameters)
-#         # print(instance)
-
-#         steps.append({"name": step_config["name"], "instance": instance})
-    
-#     config['steps'] = steps
-
-#     print(config)
-
-#     return config
-
-# # Parse command-line arguments
-# parser = argparse.ArgumentParser()
-# parser.add_argument(
-#     "--config", "-c", 
-#     default="config.json", 
-#     help="configuration file"
-# )
-# args = parser.parse_args()
-
-# # Load the steps from the configuration file
-# steps = load_config(args.config)
-
-# # Build the pipeline
-# pipeline = Pipeline()
-# for step in steps:
-#     print(step)
-#     print(step.get('name'))
-#     # print(f'Building Step {step.get("name")}')
-#     pipeline.add_step(step)
+    if args.stepwise:
+        pipeline.process()
+    # else:
+    #     pipeline.run()
