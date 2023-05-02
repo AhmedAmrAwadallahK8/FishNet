@@ -17,34 +17,6 @@ import numpy as np
 #         self.n_channels = None
 #         self.n_zstack = None 
 
-#     # def get_size(self, img, units='MB') -> float:
-#     #     if units == 'MB':
-#     #         return (img.size * img.itemsize) / 1000000
-#     #     else:
-#     #         print('Unit conversion not supported.')
-
-#     def reshape(self, img) -> np.array:
-#         img_transposed = np.transpose(img, (1, 0, 2, 3))
-#         # [0][channel][z-stack][xdim][ydim]
-#         img_5d = img_transposed.reshape((1, self.n_channels, self.n_zstack, self.dim[0], self.dim[1]))
-#         return img_5d
-
-#     def load(self):
-#         _, extension = os.path.splitext(self.filename)
-#         if extension in VALID_EXTENSIONS:
-#             if extension == ".nd2":
-#                 with nd2.ND2File(self.filename) as ndfile:
-#                     # self.size = (ndfile.size * ndfile.itemsize) / 1000000 # TODO: fix image size calculation
-#                     self.dim = (ndfile.sizes.get('X'), ndfile.sizes.get('Y'))
-#                     self.n_channels = ndfile.sizes.get('C')
-#                     self.n_zstack = ndfile.sizes.get('Z')
-#                     return self.reshape(ndfile.asarray())
-#             else:
-#                 raise ValueError(".tif format not yet supported")
-#                 # return cv2.imread(self.filename, 0)
-#         else:
-#             raise ValueError("Unsupported file format")
-
 class Node:
     """
     The Node class represents a base node in a pipeline that processes input data and produces output data.

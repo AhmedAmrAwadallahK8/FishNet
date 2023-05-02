@@ -15,7 +15,7 @@ import nd2
 import argparse
 from typing import List
 import numpy as np
-from src.loader import ND2Loader, ImageContainer, Node
+from src.loader import ND2Loader, Node
 from src.visualization import ImageViewer
 
 class Pipeline:
@@ -127,12 +127,14 @@ if __name__ == '__main__':
 
     nodes = [
         ND2Loader(name="Loader", filename=filename),
-        ImageViewer(name="Viewer1"),
+        ImageViewer(name="Viewer1", colormap="blue"), # current options: blue, yellow
     ] 
 
     pipeline = Pipeline(nodes)
 
     if args.stepwise:
         pipeline.process()
+
+    # TODO: option to run the pipeline without user input
     # else:
     #     pipeline.run()
