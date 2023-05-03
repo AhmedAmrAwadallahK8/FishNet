@@ -53,7 +53,11 @@ class FishNet():
             pipeline_img = output_img
             self.pipeline.advance()
          else:
-            self.ask_user_to_try_again_or_quit()
+            user_wants_to_retry = self.ask_user_to_try_again_or_quit()
+            if user_wants_to_retry:
+               continue
+            else:
+               break
 
 
    def process_user_input(self, user_input):
@@ -68,8 +72,14 @@ class FishNet():
 
 
    def ask_user_to_try_again_or_quit(self):
-      print("Try again?")
-      return 0
+      prompt = "Would you like to try this step again?\n"
+      prompt += "If you say no the program will assume you are done and exit. "
+      user_input = input(prompt)
+      response_id = self.process_user_input(user_input)
+      if response_id == self.positive_response_id:
+         return True
+      elif response_id == self.negative_response_id:
+         return False
 
    def check_if_user_satisified(self, output_img):
       # Display Img
@@ -106,10 +116,6 @@ class FishNet():
             self.all_imgs.append([])
             for c in range(c_stack):
                self.all_imgs[z].append(images[z*c_stack + c])
-
-
-
-
 
 if __name__ == '__main__':
    f = FishNet()
