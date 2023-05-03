@@ -53,6 +53,7 @@ class ImageViewer(Node):
         cv2.imshow("Image Viewer", image)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
+        
         return image_container
     
     def check_valid_inputs(self, inputs):

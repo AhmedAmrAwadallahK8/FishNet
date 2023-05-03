@@ -127,7 +127,8 @@ if __name__ == '__main__':
 
     nodes = [
         ND2Loader(name="Loader", filename=filename),
-        ImageViewer(name="Viewer1", colormap="blue"), # current options: blue, yellow
+        # ImageViewer(name="Viewer1", colormap="blue"), # current options: None, blue, yellow
+        # SegmentAnything(name="Segmenter"), # Not working
     ] 
 
     pipeline = Pipeline(nodes)
