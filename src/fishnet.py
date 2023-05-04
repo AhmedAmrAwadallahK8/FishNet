@@ -2,7 +2,7 @@ from nd2reader import ND2Reader
 import matplotlib.pyplot as plt
 import cv2 as cv
 import numpy as np
-from common import TempPipeline
+from src.common import TempPipeline
 
 class SampleNode():
    def __init__(self):
