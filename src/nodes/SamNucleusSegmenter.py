@@ -3,14 +3,16 @@ import torch
 import torchvision
 import matplotlib.pyplot as plt
 import cv2
+from src.nodes.AbstractNode import AbstractNode
 from src.FishNet import FishNet
 from nd2reader import ND2Reader
 
 # Agnostic Device
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-class SamNucleusSegmenter:
+class SamNucleusSegmenter(AbstractNode):
     def __init__(self):
+        super.__init__()
         self.output_name = "SamNucleusMask"
 
     def scale_and_clip_img(self, img):
