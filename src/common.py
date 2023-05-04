@@ -37,21 +37,21 @@ class Pipeline:
 
 class TempPipeline:
     def __init__(self, nodes):
-        self.node_id = 0
+        self.node_idx = 0
         self.nodes = nodes
         self.end_node = "ENDNODE"
         self.nodes.append(self.end_node)
 
     def advance(self):
-        node = self.nodes[self.node_id]
+        node = self.nodes[self.node_idx]
         if node is not self.end_node:
-            self.node_id += 1
+            self.node_idx += 1
             return True
         else:
             return False
 
     def is_not_finished(self):
-        node = self.nodes[self.node_id]
+        node = self.nodes[self.node_idx]
         if node == self.end_node:
             return False
         else:
@@ -61,8 +61,8 @@ class TempPipeline:
         self.nodes.append(node)
 
     def process_node(self, image):
-        node = self.nodes[self.node_id]
+        node = self.nodes[self.node_idx]
         if node is not self.end_node:
             image = node.process(image)
-            node = self.nodes[self.node_id]
+            node = self.nodes[self.node_idx]
             return image
