@@ -1,6 +1,7 @@
 __pycache__
 /sam_model
 /venv
+*/models
 *.un~
 *~
 *.swp
