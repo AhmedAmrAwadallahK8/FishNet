@@ -6,18 +6,23 @@ from src.common import TempPipeline
 
 class SampleNode():
    def __init__(self):
-      self.id = 0
+      self.output_name = "SampleName"
 
-   def process(self, image):
+   def get_output_name(self):
+      return self.output_name
+
+   def process(self):
       return 0
 
 class FishNet():
+   raw_imgs = []
+   pipeline_output = {}
    def __init__(self):
       self.placeholder = 0
       self.version = 0.01
       self.valid_file_types = ["nd2"]
       self.img_file = ""
-      self.all_imgs = []
+      # self.all_imgs = []
       self.nodes = [SampleNode()]
       self.pipeline = TempPipeline(self.nodes)
       self.valid_responses = ["yes", "y", "no", "n"]
@@ -44,12 +49,11 @@ class FishNet():
    # Assuming that a node outputs exactly what the next node wants
    def run_pipeline(self):
       pipeline_advanced = True
-      pipeline_img = self.all_imgs[0][0]
       while(self.pipeline.is_not_finished()):
-         output_img = self.pipeline.process_node(pipeline_img)
+         output_img, img_name = self.pipeline.process_node()
          user_satisfied = self.check_if_user_satisified(output_img)
          if user_satisfied:
-            self.save_output_img(output_img)
+            self.store_output_img(output_img, img_name)
             pipeline_img = output_img
             self.pipeline.advance()
          else:
@@ -100,8 +104,8 @@ class FishNet():
    def goodbye(self):
       print(self.goodbye_message)
 
-   def save_output_img(self, img):
-      return 0
+   def store_output_img(self, img, img_name):
+      FishNet.pipeline_output[img_name] = img
 
    def prompt_user_for_file(self):
       self.img_file = input("Input file to be processed: ")
@@ -111,11 +115,11 @@ class FishNet():
          images.iter_axes = 'zc'
          z_stack = int(input("Specify how many z slices: "))
          c_stack = int(input("Specify how many experiment channels: "))
-         self.all_imgs = []
+         FishNet.raw_imgs = []
          for z in range(z_stack):
-            self.all_imgs.append([])
+            FishNet.raw_imgs.append([])
             for c in range(c_stack):
-               self.all_imgs[z].append(images[z*c_stack + c])
+               FishNet.raw_imgs[z].append(images[z*c_stack + c])
 
 if __name__ == '__main__':
    f = FishNet()

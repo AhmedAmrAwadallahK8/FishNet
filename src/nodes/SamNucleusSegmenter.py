@@ -3,6 +3,7 @@ import torch
 import torchvision
 import matplotlib.pyplot as plt
 import cv2
+from src.FishNet import FishNet
 from nd2reader import ND2Reader
 
 # Agnostic Device
@@ -10,9 +11,9 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 class SamNucleusSegmenter:
     def __init__(self):
-        self.description = "SAM Nucleus Segmenter"
+        self.output_name = "SamNucleusMask"
 
-    def process_img(self, img):
+    def scale_and_clip_img(self, img):
         mean = img.mean()
         std = img.std()
         # img_clip = np.clip(img, mean-1.5*std, mean+3*std)
@@ -26,7 +27,7 @@ class SamNucleusSegmenter:
         return img_clip_scale_denoise
 
     def preprocess_img(self, img):
-        img = process_img(img)
+        img = scale_and_clip_img(img)
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
         img = cv2.resize(img, dsize=(512, 512), interpolation=cv2.INTER_CUBIC)
         return img
@@ -47,7 +48,8 @@ class SamNucleusSegmenter:
                 img[:,:,i] = color_mask[i]
             ax.imshow(np.dstack((img, m*0.35)))
 
-    def process(self, image):
+    def process(self):
+        raw_img = self.
         prepared_img = self.preprocess_img(image)
         sam_checkpoint = "../../sam_model/sam_vit_h_4b8939.pth"
         model_type = "vit_h"
