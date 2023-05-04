@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import cv2 as cv
 import numpy as np
 from src.common import TempPipeline
+from src.nodes.SamNucleusSegmenter import SamNucleusSegmenter
 
 class SampleNode():
    def __init__(self):
@@ -23,7 +24,7 @@ class FishNet():
       self.valid_file_types = ["nd2"]
       self.img_file = ""
       # self.all_imgs = []
-      self.nodes = [SampleNode()]
+      self.nodes = [SamNucleusSegmenter()]
       self.pipeline = TempPipeline(self.nodes)
       self.valid_responses = ["yes", "y", "no", "n"]
       self.negative_responses = ["no", "n"]
@@ -51,6 +52,8 @@ class FishNet():
       pipeline_advanced = True
       while(self.pipeline.is_not_finished()):
          output_img, img_name = self.pipeline.process_node()
+         plt.imshow(output_img)
+         plt.pause(0.01)
          user_satisfied = self.check_if_user_satisified(output_img)
          if user_satisfied:
             self.store_output_img(output_img, img_name)
@@ -120,6 +123,7 @@ class FishNet():
             FishNet.raw_imgs.append([])
             for c in range(c_stack):
                FishNet.raw_imgs[z].append(images[z*c_stack + c])
+      FishNet.raw_imgs = np.asarray(FishNet.raw_imgs)
 
 if __name__ == '__main__':
    f = FishNet()
