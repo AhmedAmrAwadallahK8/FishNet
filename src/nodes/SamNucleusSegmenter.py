@@ -7,9 +7,6 @@ from src.nodes.AbstractNode import AbstractNode
 from nd2reader import ND2Reader
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator, SamPredictor
 
-# Agnostic Device
-device = "cuda" if torch.cuda.is_available() else "cpu"
-
 class InvalidChannelError(Exception):
     def __init__(self):
         msg = "Input channel id is either larger than the channels present "
@@ -20,6 +17,7 @@ class SamNucleusSegmenter(AbstractNode):
     def __init__(self):
         super().__init__()
         self.output_name = "SamNucleusMask"
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
     def rescale_img(self, img):
         img_scaled = img.copy()
@@ -91,19 +89,23 @@ class SamNucleusSegmenter(AbstractNode):
         raw_img = FishNet.raw_imgs[0][nucleus_channel]
         return raw_img
 
-
-        
+    def get_sam_segment_data(self, prepared_img):
+        print("Segmenting Nucleus this step takes some time...")
+        sam_checkpoint = "sam_model/sam_vit_h_4b8939.pth"
+        model_type = "vit_h"
+        sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
+        sam.to(device=self.device)
+        mask_generator = SamAutomaticMaskGenerator(sam)
+        sam_masks = mask_generator.generate(prepared_img)
+        return sam_masks
 
     def process(self):
         raw_img = self.get_raw_nucleus_img()
         prepared_img = self.preprocess_img(raw_img)
-        sam_checkpoint = "sam_model/sam_vit_h_4b8939.pth"
-        model_type = "vit_h"
-        sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
-        sam.to(device=device)
-        mask_generator = SamAutomaticMaskGenerator(sam)
-        masks = mask_generator.generate(prepared_img)
-        mask_img = self.generate_mask_img(prepared_img, masks)
+        sam_masks = self.get_sam_segment_data(prepared_img)
+        mask_img = self.generate_mask_img(prepared_img, sam_masks)
+        plt.imshow(mask_img)
+        plt.pause(0.01)
         return mask_img
         
         

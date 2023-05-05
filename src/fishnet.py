@@ -52,8 +52,6 @@ class FishNet():
       pipeline_advanced = True
       while(self.pipeline.is_not_finished()):
          output_img, img_name = self.pipeline.process_node()
-         plt.imshow(output_img)
-         plt.pause(0.01)
          user_satisfied = self.check_if_user_satisified(output_img)
          if user_satisfied:
             self.store_output_img(output_img, img_name)
