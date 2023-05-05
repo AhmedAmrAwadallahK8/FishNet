@@ -73,6 +73,7 @@ class SamNucleusSegmenter(AbstractNode):
             mask_instance[:,:,1] =  (mask_instance[:,:,1] + segment_instance)
             mask_instance[:,:,2] =  (mask_instance[:,:,2] + segment_instance)
             mask_img = mask_img + mask_instance
+        mask_img = mask_img.astype(int)
         return mask_img
 
     def check_if_valid_channel(self, channel):
@@ -104,8 +105,13 @@ class SamNucleusSegmenter(AbstractNode):
         prepared_img = self.preprocess_img(raw_img)
         sam_masks = self.get_sam_segment_data(prepared_img)
         mask_img = self.generate_mask_img(prepared_img, sam_masks)
+
+        #Plot for user to examine...
+        plt.figure(figsize=(8,8))
+        plt.axis('off')
         plt.imshow(mask_img)
         plt.pause(0.01)
+
         return mask_img
         
         
