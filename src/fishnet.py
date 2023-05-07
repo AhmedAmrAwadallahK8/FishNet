@@ -2,8 +2,11 @@ from nd2reader import ND2Reader
 import matplotlib.pyplot as plt
 import cv2 as cv
 import numpy as np
+import src.user_interaction as usr_int
+import sys
 from src.common import TempPipeline
 from src.nodes.SamNucleusSegmenter import SamNucleusSegmenter
+
 
 class SampleNode():
    def __init__(self):
@@ -46,28 +49,21 @@ class FishNet():
 
    def welcome(self):
       print(self.welcome_message)
+
+   def user_exit(self):
+      print("An exit input was recieved, program will now terminate.")
+      self.goodbye()
+      sys.exit()
    
    # Assuming that a node outputs exactly what the next node wants
    def run_pipeline(self):
       pipeline_advanced = True
       while(self.pipeline.is_not_finished()):
-         output_img, img_name = self.pipeline.run_node()
-         if output_img is None:
-             # EXIT THE PROGRAM WITH A USER EXIT CODE
-             return
-         # user_satisfied = self.check_if_user_satisified(output_img)
+         node_output, img_name = self.pipeline.run_node()
+         if node_output == usr_int.quit_response_id:
+            self.user_exit()
          self.store_output_img(output_img, img_name)
          self.pipeline.advance()
-         # if user_satisfied:
-         #    self.store_output_img(output_img, img_name)
-         #    pipeline_img = output_img
-         #    self.pipeline.advance()
-         # else:
-         #    user_wants_to_retry = self.ask_user_to_try_again_or_quit()
-         #    if user_wants_to_retry:
-         #       continue
-         #    else:
-         #       break
 
 
    def process_user_input(self, user_input):

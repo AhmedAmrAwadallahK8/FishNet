@@ -20,6 +20,10 @@ class SamNucleusSegmenter(AbstractNode):
                          requirements=[],
                          user_can_retry=True)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.sam_mask_generator = None
+        self.prepared_img = None
+        self.mask_img = None
+        
 
     def rescale_img(self, img):
         img_scaled = img.copy()
@@ -106,28 +110,22 @@ class SamNucleusSegmenter(AbstractNode):
         sam_masks = self.sam_mask_generator.generate(prepared_img)
         return sam_masks
 
-    def plot_output(self, mask_img):
+    def plot_output(self):
         #Plot for user to examine...
         plt.figure(figsize=(8,8))
         plt.axis('off')
-        plt.imshow(mask_img)
+        plt.imshow(self.mask_img)
         plt.pause(0.01)
 
-    def process(self):
+    def initialize_node(self):
         raw_img = self.get_raw_nucleus_img()
-        prepared_img = self.preprocess_img(raw_img)
+        self.prepared_img = self.preprocess_img(raw_img)
         self.setup_sam()
-        mask_img = None
-        while True:
-            sam_masks = self.get_sam_segment_data(prepared_img)
-            mask_img = self.generate_mask_img(prepared_img, sam_masks)
-            self.plot_output(mask_img)
-            user_satisfied = usr_int.check_if_user_satisified()
-            if user_satisfied:
-                return mask_img
-            else:
-                user_wants_to_retry = usr_int.ask_user_to_try_again_or_quit()
-                if user_wants_to_retry:
-                    continue
-                else:
-                    return None
+        
+
+    def process(self):
+        sam_masks = self.get_sam_segment_data(self.prepared_img)
+        self.mask_img = self.generate_mask_img(self.prepared_img, sam_masks)
+        return self.mask_img
+
+

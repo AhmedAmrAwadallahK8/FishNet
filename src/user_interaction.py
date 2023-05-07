@@ -5,6 +5,9 @@ positive_responses = ["yes", "y"]
 invalid_response_id = 0
 positive_response_id = 1
 negative_response_id = 2
+satisfied_response_id = 3
+quit_response_id = 4
+retry_response_id = 5
 
 def process_user_input(user_input):
     user_input = user_input.lower()
@@ -27,7 +30,7 @@ def ask_user_to_try_again_or_quit():
         return False
 
 def check_if_user_satisified():
-    prompt = "Are you satisfied with the displayed image"
+    prompt = "Are you satisfied with the displayed output"
     prompt += " for this step? "
     response_id = invalid_response_id
     while(response_id == invalid_response_id):
@@ -40,3 +43,15 @@ def check_if_user_satisified():
         elif response_id == invalid_response_id:
             print("Invalid response try again.")
             print("We expect either yes or no.")
+
+def get_user_feedback_for_node_output():
+    user_is_satisfied = check_if_user_satisified()
+    if user_is_satisfied:
+        return satisfied_response_id
+    else:
+        user_wants_retry = ask_user_to_try_again_or_quit()
+        if user_wants_retry:
+            return retry_response_id
+        else:
+            return quit_response_id
+        
