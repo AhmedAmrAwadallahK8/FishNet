@@ -3,6 +3,7 @@ import torch
 import torchvision
 import matplotlib.pyplot as plt
 import cv2
+import src.user_interaction as usr_int
 from src.nodes.AbstractNode import AbstractNode
 from nd2reader import ND2Reader
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator, SamPredictor
@@ -15,8 +16,9 @@ class InvalidChannelError(Exception):
 
 class SamNucleusSegmenter(AbstractNode):
     def __init__(self):
-        super().__init__()
-        self.output_name = "SamNucleusMask"
+        super().__init__(output_name="SamNucleusMask",
+                         requirements=[],
+                         user_can_retry=True)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
     def rescale_img(self, img):
@@ -90,28 +92,42 @@ class SamNucleusSegmenter(AbstractNode):
         raw_img = FishNet.raw_imgs[0][nucleus_channel]
         return raw_img
 
-    def get_sam_segment_data(self, prepared_img):
-        print("Segmenting Nucleus this step takes some time...")
+    def setup_sam(self):
         sam_checkpoint = "sam_model/sam_vit_h_4b8939.pth"
         model_type = "vit_h"
         sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
         sam.to(device=self.device)
         mask_generator = SamAutomaticMaskGenerator(sam)
-        sam_masks = mask_generator.generate(prepared_img)
+        self.sam_mask_generator = mask_generator
+        
+
+    def get_sam_segment_data(self, prepared_img):
+        print("Segmenting Nucleus this step takes some time...")
+        sam_masks = self.sam_mask_generator.generate(prepared_img)
         return sam_masks
 
-    def process(self):
-        raw_img = self.get_raw_nucleus_img()
-        prepared_img = self.preprocess_img(raw_img)
-        sam_masks = self.get_sam_segment_data(prepared_img)
-        mask_img = self.generate_mask_img(prepared_img, sam_masks)
-
+    def plot_output(self, mask_img):
         #Plot for user to examine...
         plt.figure(figsize=(8,8))
         plt.axis('off')
         plt.imshow(mask_img)
         plt.pause(0.01)
 
-        return mask_img
-        
-        
+    def process(self):
+        raw_img = self.get_raw_nucleus_img()
+        prepared_img = self.preprocess_img(raw_img)
+        self.setup_sam()
+        mask_img = None
+        while True:
+            sam_masks = self.get_sam_segment_data(prepared_img)
+            mask_img = self.generate_mask_img(prepared_img, sam_masks)
+            self.plot_output(mask_img)
+            user_satisfied = usr_int.check_if_user_satisified()
+            if user_satisfied:
+                return mask_img
+            else:
+                user_wants_to_retry = usr_int.ask_user_to_try_again_or_quit()
+                if user_wants_to_retry:
+                    continue
+                else:
+                    return None

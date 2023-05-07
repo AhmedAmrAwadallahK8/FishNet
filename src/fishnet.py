@@ -51,18 +51,23 @@ class FishNet():
    def run_pipeline(self):
       pipeline_advanced = True
       while(self.pipeline.is_not_finished()):
-         output_img, img_name = self.pipeline.process_node()
-         user_satisfied = self.check_if_user_satisified(output_img)
-         if user_satisfied:
-            self.store_output_img(output_img, img_name)
-            pipeline_img = output_img
-            self.pipeline.advance()
-         else:
-            user_wants_to_retry = self.ask_user_to_try_again_or_quit()
-            if user_wants_to_retry:
-               continue
-            else:
-               break
+         output_img, img_name = self.pipeline.run_node()
+         if output_img is None:
+             # EXIT THE PROGRAM WITH A USER EXIT CODE
+             return
+         # user_satisfied = self.check_if_user_satisified(output_img)
+         self.store_output_img(output_img, img_name)
+         self.pipeline.advance()
+         # if user_satisfied:
+         #    self.store_output_img(output_img, img_name)
+         #    pipeline_img = output_img
+         #    self.pipeline.advance()
+         # else:
+         #    user_wants_to_retry = self.ask_user_to_try_again_or_quit()
+         #    if user_wants_to_retry:
+         #       continue
+         #    else:
+         #       break
 
 
    def process_user_input(self, user_input):
@@ -86,7 +91,7 @@ class FishNet():
       elif response_id == self.negative_response_id:
          return False
 
-   def check_if_user_satisified(self, output_img):
+   def check_if_user_satisified(self):
       # Display Img
       prompt = "Are you satisfied with the displayed image"
       prompt += " for this step? "

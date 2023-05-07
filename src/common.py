@@ -60,10 +60,10 @@ class TempPipeline:
     def add_node(self, node):
         self.nodes.append(node)
 
-    def process_node(self):
+    def run_node(self):
         node = self.nodes[self.node_idx]
         if node is not self.end_node:
-            image = node.process()
+            image = node.run()
             image_name = node.get_output_name()
-            node = self.nodes[self.node_idx]
+            node = self.nodes[self.node_idx] #This may be a useless line
             return image, image_name
