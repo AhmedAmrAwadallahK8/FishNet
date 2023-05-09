@@ -26,7 +26,7 @@ class AbstractNode:
         print("This is the default plot method that does nothing")
         pass
 
-    def ask_user_if_they_have_substitute_for_requirement(requirement):
+    def ask_user_if_they_have_substitute_for_requirement(self, requirement):
         prompt = "The requirement {requirement} has not been met by a"
         prompt += "step earlier in the pipeline. Do you have a replacement?"
         
@@ -58,7 +58,7 @@ class AbstractNode:
                 if usr_feedback == usr_int.satisfied_response_id:
                     return node_output
                 elif usr_feedback == usr_int.quit_response_id:
-                    return usr_int.quit_response_id
+                    return None
 
                 if first_pass:
                     first_pass = False

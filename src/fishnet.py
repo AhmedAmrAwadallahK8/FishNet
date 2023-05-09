@@ -59,10 +59,10 @@ class FishNet():
    def run_pipeline(self):
       pipeline_advanced = True
       while(self.pipeline.is_not_finished()):
-         node_output, img_name = self.pipeline.run_node()
-         if node_output == usr_int.quit_response_id:
+         node_output, out_name = self.pipeline.run_node()
+         if node_output is None: # Likely have to change this
             self.user_exit()
-         self.store_output_img(output_img, img_name)
+         self.store_output(node_output, out_name)
          self.pipeline.advance()
 
 
@@ -106,8 +106,8 @@ class FishNet():
    def goodbye(self):
       print(self.goodbye_message)
 
-   def store_output_img(self, img, img_name):
-      FishNet.pipeline_output[img_name] = img
+   def store_output(self, output, out_name):
+      FishNet.pipeline_output[out_name] = output
 
    def prompt_user_for_file(self):
       self.img_file = input("Input file to be processed: ")
