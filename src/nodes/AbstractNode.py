@@ -1,4 +1,5 @@
 import src.user_interaction as usr_int
+import src.file_handler as file_handler
 
 class AbstractNode:
     def __init__(self, output_name="", requirements=[], user_can_retry=False):
@@ -7,6 +8,7 @@ class AbstractNode:
         self.requirements = requirements
         self.user_can_retry = user_can_retry
         self.requirements_met = True
+        
 
     def get_output_name(self):
         return self.output_name
@@ -17,14 +19,12 @@ class AbstractNode:
 
     def initialize_node(self):
         print("This is the default initialization method that does nothing")
-        pass
 
     def reinitialize_node(self):
         self.initialize_node()
 
     def plot_output(self):
         print("This is the default plot method that does nothing")
-        pass
 
     def ask_user_if_they_have_substitute_for_requirement(self, requirement):
         prompt = "The requirement {requirement} has not been met by a"
@@ -35,13 +35,18 @@ class AbstractNode:
         from src.fishnet import FishNet
         for requirement in self.requirements:
             if requirement not in FishNet.pipeline_output.keys():
-                self.requirement_check[requirement] = False
-                self.requirements_met = False
-            elif requirement in FishNet.pipeline_output.keys():
-                self.requirement_check[requirement] = True
+                user_response_id = usr_int.ask_if_user_has_replacement_for_requirement(requirement)
+                if user_response_id == usr_int.positive_response_id:
+                    loaded_img = file_handler.load_img_file()
+                    FishNet.pipeline_output[requirement] = loaded_img
+                elif user_response_id == usr_int.negative_response_id:
+                    self.requirements_met = False
 
     def run(self):
         self.check_requirements()
+        if self.requirements_met is False:
+            return None
+
         self.initialize_node()
         if self.user_can_retry:
             usr_feedback = usr_int.retry_response_id
@@ -59,7 +64,6 @@ class AbstractNode:
                     return node_output
                 elif usr_feedback == usr_int.quit_response_id:
                     return None
-
                 if first_pass:
                     first_pass = False
         else:

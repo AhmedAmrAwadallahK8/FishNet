@@ -22,14 +22,10 @@ def process_user_input(user_input):
 
 def ask_if_user_has_replacement_for_requirement(requirement):
     prompt = f"This process requires {requirement} which does not currently"
-    prompt = f" exist. Do you have a replacement? If you dont the program will"
-    prompt = f" be forced to exit"
-    user_input = input(prompt)
-    response_id = ask_user_for_yes_or_no(user_input)
-    if response_id == positive_response_id:
-        return positive_response_id
-    elif response_id == negative_response_id:
-        return quit_response_id
+    prompt += f" exist. If you dont have a replacement the program will"
+    prompt += f" be forced to exit. Do you have a replacement? "
+    response_id = ask_user_for_yes_or_no(prompt)
+    return response_id
 
 def ask_user_to_try_again_or_quit():
     prompt = "Would you like to try this step again?\n"
