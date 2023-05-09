@@ -23,7 +23,67 @@ class SamNucleusSegmenter(AbstractNode):
         self.sam_mask_generator = None
         self.prepared_img = None
         self.mask_img = None
-        
+        self.sam = None
+        self.default_sam_settings = {
+            "points_per_side": 32,
+            "pred_iou_thresh": 0.86,
+            "stability_score_thresh": 0.92,
+            "crop_n_layers": 1,
+            "crop_n_points_downscale_factor": 2,
+            "min_mask_region_area": 100
+        }
+        self.custom_sam_settings = {
+            "points_per_side": 0,
+            "pred_iou_thresh": 0,
+            "stability_score_thresh": 0,
+            "crop_n_layers": 0,
+            "crop_n_points_downscale_factor": 0,
+            "min_mask_region_area": 0
+        }
+        self.sam_param_range = {
+            "points_per_side": [4, 128],
+            "pred_iou_thresh": [0, 1],
+            "stability_score_thresh": [0, 1],
+            "crop_n_layers": [1, 8],
+            "crop_n_points_downscale_factor": [1, 8],
+            "min_mask_region_area": [1, 1000]
+        }
+        self.sam_param_type = {
+            "points_per_side": "int",
+            "pred_iou_thresh": "float",
+            "stability_score_thresh": "float",
+            "crop_n_layers": "int",
+            "crop_n_points_downscale_factor": "int",
+            "min_mask_region_area": "int"
+        }
+
+        self.final_sam_settings = self.default_sam_settings.copy()
+
+        pps_descrip = f"Points Per Side is the number of points to be sampled"
+        pps_descrip += f" along one side of an image. Suggested values are"
+        pps_descrip += f" between {self.sam_param_range['points_per_side'][0]}"
+        pps_descrip += f" and {self.sam_param_range['points_per_side'][1]}."
+        pps_descrip += f" Larger values of points per side allows the model"
+        pps_descrip += f" to segment more complex shapes"
+
+        iou_descrip = f" Predicted IOU Threshold uses an internal metric to "
+        iou_descrip += f" assess the quality of a segmentation. Suggested"
+        iou_descrip += f" values are between"
+        iou_descrip += f" {self.sam_param_range['pred_iou_thresh'][0]}"
+        iou_descrip += f" and {self.sam_param_range['pred_iou_thresh'][1]}."
+        iou_descrip += f" Lower values for this metric results in more"
+        iou_descrip += f" segmentation instances of lower quality while"
+        iou_descrip += f" higher is less instances of higher quality."
+
+
+        self.param_description = {
+            "points_per_side": pps_descrip, #What does this even mean
+            "pred_iou_thresh": iou_descrip,
+            "stability_score_thresh": "NA",
+            "crop_n_layers": "NA",
+            "crop_n_points_downscale_factor": "NA",
+            "min_mask_region_area": "NA"
+        }
 
     def rescale_img(self, img):
         img_scaled = img.copy()
@@ -97,12 +157,14 @@ class SamNucleusSegmenter(AbstractNode):
         return raw_img
 
     def setup_sam(self):
+        print("Setting up SAM model...")
         sam_checkpoint = "sam_model/sam_vit_h_4b8939.pth"
         model_type = "vit_h"
-        sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
-        sam.to(device=self.device)
-        mask_generator = SamAutomaticMaskGenerator(sam)
-        self.sam_mask_generator = mask_generator
+        self.sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
+        self.sam.to(device=self.device)
+        self.sam_mask_generator = SamAutomaticMaskGenerator(
+                                      model=self.sam,
+                                      **self.final_sam_settings)
         
 
     def get_sam_segment_data(self, prepared_img):
@@ -117,10 +179,50 @@ class SamNucleusSegmenter(AbstractNode):
         plt.imshow(self.mask_img)
         plt.pause(0.01)
 
+    def get_custom_sam_parameters(self):
+        for param in self.custom_sam_settings:
+            param_message = self.param_description[param]
+            print(param_message)
+            msg = f"Input a value for {param}: "
+            param_range = self.sam_param_range[param]
+            param_setting = usr_int.get_numeric_input_in_range(msg, param_range)
+            if self.sam_param_type[param] == "int":
+                param_setting = int(param_setting)
+            self.custom_sam_settings[param] = param_setting
+            
+
+    # I dont like this name
+    def custom_or_default(self):
+        prompt = "Would you like to use custom settings for SAM? "
+        response_id = usr_int.ask_user_for_yes_or_no(prompt)
+        if response_id == usr_int.positive_response_id:
+            self.get_custom_sam_parameters()
+            self.final_sam_settings = self.custom_sam_settings.copy()
+        elif response_id == usr_int.negative_response_id:
+            print("Using default SAM parameters...")
+            self.final_sam_settings = self.default_sam_settings.copy()
+
+    def prepare_sam_hyperparameters(self):
+        msg = "The SAM Nucleus Segmenter can use either default or custom "
+        msg += "parameters."
+        print(msg)
+        self.custom_or_default()
+
     def initialize_node(self):
         raw_img = self.get_raw_nucleus_img()
         self.prepared_img = self.preprocess_img(raw_img)
+        self.prepare_sam_hyperparameters()
         self.setup_sam()
+
+    def quick_sam_setup(self):
+        self.sam_mask_generator = SamAutomaticMaskGenerator(
+                                      model=self.sam,
+                                      **self.final_sam_settings)
+
+
+    def reinitialize_node(self):
+        self.prepare_sam_hyperparameters()
+        self.quick_sam_setup()
         
 
     def process(self):

@@ -20,6 +20,22 @@ def process_user_input(user_input):
     else:
         return invalid_response_id
 
+def response_within_range(numeric_response, numeric_range):
+    if (numeric_response >= numeric_range[0]) and (numeric_response <= numeric_range[1]):
+        return True
+    else:
+        return False
+
+def get_numeric_input_in_range(prompt, numeric_range):
+    usr_response = invalid_response_id
+    while(usr_response == invalid_response_id):
+        usr_response = float(input(prompt))
+        if response_within_range(usr_response, numeric_range):
+            return usr_response
+        else:
+            usr_response = invalid_response_id
+        
+
 def ask_if_user_has_replacement_for_requirement(requirement):
     prompt = f"This process requires {requirement} which does not currently"
     prompt += f" exist. If you dont have a replacement the program will"
