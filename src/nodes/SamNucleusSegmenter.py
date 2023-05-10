@@ -200,6 +200,17 @@ class SamNucleusSegmenter(AbstractNode):
         mask_img = mask_img.astype(int)
         return mask_img
 
+    def generate_contour_img(self, mask_img):
+        contour_col = (255, 0, 0)
+        contour_img = np.ones(mask_img.shape, dtype=np.uint8) * 255
+        gray_mask = cv2.cvtColor(mask_img.astype(np.uint8), cv2.COLOR_BGR2GRAY)
+        
+        cnts = cv2.findContours(gray_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        cnts = cnts[0] if len(cnts) == 2 else cnts[1]
+        for c in cnts:
+            cv2.drawContours(contour_img, [c], -1, contour_col, thickness=2)
+        return contour_img
+
     def check_if_valid_channel(self, channel):
         from src.fishnet import FishNet
         channel_count = FishNet.raw_imgs.shape[1]
@@ -233,7 +244,8 @@ class SamNucleusSegmenter(AbstractNode):
     def plot_output(self):
         #Plot for user to examine...
         colored_mask = self.generate_colored_mask(self.mask_img)
-        output_compare = np.hstack((self.prepared_img, colored_mask))
+        contour_img = self.generate_contour_img(self.mask_img)
+        output_compare = np.hstack((self.prepared_img, colored_mask, contour_img))
         plt.figure(figsize=(12,8))
         plt.axis('off')
         plt.imshow(output_compare)
