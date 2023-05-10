@@ -26,11 +26,11 @@ class SamNucleusSegmenter(AbstractNode):
         self.sam = None
         self.default_sam_settings = {
             "points_per_side": 32, #32
-            "pred_iou_thresh": 0.86, #0.95
-            "stability_score_thresh": 0.92, #0.97
+            "pred_iou_thresh": 0.97, #0.95
+            "stability_score_thresh": 0.97, #0.97
             "crop_n_layers": 1, #1
             "crop_n_points_downscale_factor": 2,
-            "min_mask_region_area": 100 #200
+            "min_mask_region_area": 800 #200
         }
         self.custom_sam_settings = {
             "points_per_side": 0,
@@ -63,9 +63,8 @@ class SamNucleusSegmenter(AbstractNode):
         pps_descrip += f" along one side of an image."
         pps_descrip += f" Larger values of points per side allows the model"
         pps_descrip += f" to segment more complex shapes."
-        pps_descrip += f"\nValid values are between"
-        pps_descrip += f" {self.sam_param_range['points_per_side'][0]}"
-        pps_descrip += f" and {self.sam_param_range['points_per_side'][1]}."
+        pps_descrip += f"\nValid values are within"
+        pps_descrip += f" {self.sam_param_range['points_per_side']}"
         pps_descrip += f"\nDefault value is"
         pps_descrip += f" {self.default_sam_settings['points_per_side']}."
 
@@ -74,9 +73,8 @@ class SamNucleusSegmenter(AbstractNode):
         iou_descrip += f" Lower values for this metric results in more"
         iou_descrip += f" segmentation instances of lower quality while"
         iou_descrip += f" higher is less instances of higher quality."
-        iou_descrip += f"\nValid values are between"
-        iou_descrip += f" {self.sam_param_range['pred_iou_thresh'][0]}"
-        iou_descrip += f" and {self.sam_param_range['pred_iou_thresh'][1]}."
+        iou_descrip += f"\nValid values are within"
+        iou_descrip += f" {self.sam_param_range['pred_iou_thresh']}"
         iou_descrip += f"\nDefault value is"
         iou_descrip += f" {self.default_sam_settings['pred_iou_thresh']}."
 
@@ -85,9 +83,8 @@ class SamNucleusSegmenter(AbstractNode):
         sst_descrip += f" changes to the cutoff. Higher values of this metric"
         sst_descrip += f" produces segmentations that rarely change while"
         sst_descrip += f" lower values produces output that often changes."
-        sst_descrip += f"\nValid values for this metric are between"
-        sst_descrip += f" {self.sam_param_range['stability_score_thresh'][0]}"
-        sst_descrip += f" and {self.sam_param_range['stability_score_thresh'][1]}"
+        sst_descrip += f"\nValid values for this metric are within"
+        sst_descrip += f" {self.sam_param_range['stability_score_thresh']}"
         sst_descrip += f"\nDefault value is"
         sst_descrip += f" {self.default_sam_settings['stability_score_thresh']}."
 
@@ -95,9 +92,8 @@ class SamNucleusSegmenter(AbstractNode):
         cnl_descrip += f" crops of the image a well. This is another method"
         cnl_descrip += f" of controlling for segmentation of stability but"
         cnl_descrip += f" it comes at a large computation cost."
-        cnl_descrip += f"\nValid values for this metric are between"
-        cnl_descrip += f" {self.sam_param_range['crop_n_layers'][0]} and"
-        cnl_descrip += f" {self.sam_param_range['crop_n_layers'][1]}."
+        cnl_descrip += f"\nValid values for this metric are within"
+        cnl_descrip += f" {self.sam_param_range['crop_n_layers']}"
         cnl_descrip += f"\nDefault value is"
         cnl_descrip += f" {self.default_sam_settings['crop_n_layers']}."
 
@@ -111,7 +107,7 @@ class SamNucleusSegmenter(AbstractNode):
         mmra_descrip += f" that removes segmentations that are below the"
         mmra_descrip += f" specified area. Size depends on the object you are"
         mmra_descrip += f" trying to segment."
-        mmra_descrip += f"\nValid values for this metric are between"
+        mmra_descrip += f"\nValid values for this metric are within"
         mmra_descrip += f" {self.sam_param_range['min_mask_region_area']}"
         mmra_descrip += f"\nDefault value is"
         mmra_descrip += f" {self.default_sam_settings['min_mask_region_area']}"
@@ -169,6 +165,27 @@ class SamNucleusSegmenter(AbstractNode):
                 img[:,:,i] = color_mask[i]
             ax.imshow(np.dstack((img, m*0.35)))
 
+    def generate_colored_mask(self, mask_img):
+        colored_mask = np.zeros(mask_img.shape)
+        for segment_id in range(1, int(mask_img.max())+1):
+            id_instance = np.where(mask_img == segment_id, segment_id, 0)
+            color_instance = np.where(mask_img == segment_id, 1, 0)
+            red_pix = np.random.randint(256, size=1)[0]
+            green_pix = np.random.randint(256, size=1)[0]
+            blue_pix = np.random.randint(256, size=1)[0]
+
+            #When the color is close to black default to making it white
+            if (red_pix + green_pix + blue_pix) <= 5:
+                red_pix = 255
+                green_pix = 255
+                blue_pix = 255
+            color_instance[:,:,0] = color_instance[:,:,0]*red_pix
+            color_instance[:,:,1] = color_instance[:,:,1]*green_pix
+            color_instance[:,:,2] = color_instance[:,:,2]*blue_pix
+            colored_mask = colored_mask + color_instance
+        colored_mask = colored_mask.astype(int)
+        return colored_mask
+
     def generate_mask_img(self, img, sam_masks):
         mask_img = np.zeros(img.shape)
         instance_id = 0
@@ -215,9 +232,11 @@ class SamNucleusSegmenter(AbstractNode):
 
     def plot_output(self):
         #Plot for user to examine...
-        plt.figure(figsize=(8,8))
+        colored_mask = self.generate_colored_mask(self.mask_img)
+        output_compare = np.hstack((self.prepared_img, colored_mask))
+        plt.figure(figsize=(12,8))
         plt.axis('off')
-        plt.imshow(self.mask_img)
+        plt.imshow(output_compare)
         plt.pause(0.01)
 
     def get_custom_sam_parameters(self):
