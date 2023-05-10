@@ -33,6 +33,7 @@ def get_numeric_input_in_range(prompt, numeric_range):
         if response_within_range(usr_response, numeric_range):
             return usr_response
         else:
+            print("Invalid input try again.")
             usr_response = invalid_response_id
         
 

@@ -25,12 +25,12 @@ class SamNucleusSegmenter(AbstractNode):
         self.mask_img = None
         self.sam = None
         self.default_sam_settings = {
-            "points_per_side": 32,
-            "pred_iou_thresh": 0.86,
-            "stability_score_thresh": 0.92,
-            "crop_n_layers": 1,
+            "points_per_side": 32, #32
+            "pred_iou_thresh": 0.86, #0.95
+            "stability_score_thresh": 0.92, #0.97
+            "crop_n_layers": 1, #1
             "crop_n_points_downscale_factor": 2,
-            "min_mask_region_area": 100
+            "min_mask_region_area": 100 #200
         }
         self.custom_sam_settings = {
             "points_per_side": 0,
@@ -44,9 +44,9 @@ class SamNucleusSegmenter(AbstractNode):
             "points_per_side": [4, 128],
             "pred_iou_thresh": [0, 1],
             "stability_score_thresh": [0, 1],
-            "crop_n_layers": [1, 8],
+            "crop_n_layers": [0, 4],
             "crop_n_points_downscale_factor": [1, 8],
-            "min_mask_region_area": [1, 1000]
+            "min_mask_region_area": [1, 10000]
         }
         self.sam_param_type = {
             "points_per_side": "int",
@@ -60,29 +60,70 @@ class SamNucleusSegmenter(AbstractNode):
         self.final_sam_settings = self.default_sam_settings.copy()
 
         pps_descrip = f"Points Per Side is the number of points to be sampled"
-        pps_descrip += f" along one side of an image. Suggested values are"
-        pps_descrip += f" between {self.sam_param_range['points_per_side'][0]}"
-        pps_descrip += f" and {self.sam_param_range['points_per_side'][1]}."
+        pps_descrip += f" along one side of an image."
         pps_descrip += f" Larger values of points per side allows the model"
-        pps_descrip += f" to segment more complex shapes"
+        pps_descrip += f" to segment more complex shapes."
+        pps_descrip += f"\nValid values are between"
+        pps_descrip += f" {self.sam_param_range['points_per_side'][0]}"
+        pps_descrip += f" and {self.sam_param_range['points_per_side'][1]}."
+        pps_descrip += f"\nDefault value is"
+        pps_descrip += f" {self.default_sam_settings['points_per_side']}."
 
-        iou_descrip = f" Predicted IOU Threshold uses an internal metric to "
-        iou_descrip += f" assess the quality of a segmentation. Suggested"
-        iou_descrip += f" values are between"
-        iou_descrip += f" {self.sam_param_range['pred_iou_thresh'][0]}"
-        iou_descrip += f" and {self.sam_param_range['pred_iou_thresh'][1]}."
+        iou_descrip = f"Predicted IOU Threshold uses an internal metric to "
+        iou_descrip += f" assess the quality of a segmentation."
         iou_descrip += f" Lower values for this metric results in more"
         iou_descrip += f" segmentation instances of lower quality while"
         iou_descrip += f" higher is less instances of higher quality."
+        iou_descrip += f"\nValid values are between"
+        iou_descrip += f" {self.sam_param_range['pred_iou_thresh'][0]}"
+        iou_descrip += f" and {self.sam_param_range['pred_iou_thresh'][1]}."
+        iou_descrip += f"\nDefault value is"
+        iou_descrip += f" {self.default_sam_settings['pred_iou_thresh']}."
+
+        sst_descrip = f"Stability Score Threshold uses an internal metric"
+        sst_descrip += f" that asses the stability of segmentation under"
+        sst_descrip += f" changes to the cutoff. Higher values of this metric"
+        sst_descrip += f" produces segmentations that rarely change while"
+        sst_descrip += f" lower values produces output that often changes."
+        sst_descrip += f"\nValid values for this metric are between"
+        sst_descrip += f" {self.sam_param_range['stability_score_thresh'][0]}"
+        sst_descrip += f" and {self.sam_param_range['stability_score_thresh'][1]}"
+        sst_descrip += f"\nDefault value is"
+        sst_descrip += f" {self.default_sam_settings['stability_score_thresh']}."
+
+        cnl_descrip = f"Crop N Layers causes the model to run predictions on"
+        cnl_descrip += f" crops of the image a well. This is another method"
+        cnl_descrip += f" of controlling for segmentation of stability but"
+        cnl_descrip += f" it comes at a large computation cost."
+        cnl_descrip += f"\nValid values for this metric are between"
+        cnl_descrip += f" {self.sam_param_range['crop_n_layers'][0]} and"
+        cnl_descrip += f" {self.sam_param_range['crop_n_layers'][1]}."
+        cnl_descrip += f"\nDefault value is"
+        cnl_descrip += f" {self.default_sam_settings['crop_n_layers']}."
+
+        cnpdf_descrip = "NA Description"
+        cnpdf_descrip += f"\nValid values for this metric are within "
+        cnpdf_descrip += f"{self.sam_param_range['crop_n_points_downscale_factor']}"
+        cnpdf_descrip += f"\nDefault value is "
+        cnpdf_descrip += f"{self.default_sam_settings['crop_n_points_downscale_factor']}."
+
+        mmra_descrip = f"Min Mask Region Area is a post processing parameter"
+        mmra_descrip += f" that removes segmentations that are below the"
+        mmra_descrip += f" specified area. Size depends on the object you are"
+        mmra_descrip += f" trying to segment."
+        mmra_descrip += f"\nValid values for this metric are between"
+        mmra_descrip += f" {self.sam_param_range['min_mask_region_area']}"
+        mmra_descrip += f"\nDefault value is"
+        mmra_descrip += f" {self.default_sam_settings['min_mask_region_area']}"
 
 
         self.param_description = {
             "points_per_side": pps_descrip, #What does this even mean
             "pred_iou_thresh": iou_descrip,
-            "stability_score_thresh": "NA",
-            "crop_n_layers": "NA",
-            "crop_n_points_downscale_factor": "NA",
-            "min_mask_region_area": "NA"
+            "stability_score_thresh": sst_descrip,
+            "crop_n_layers": cnl_descrip,
+            "crop_n_points_downscale_factor": cnpdf_descrip,
+            "min_mask_region_area": mmra_descrip
         }
 
     def rescale_img(self, img):
