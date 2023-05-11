@@ -2,11 +2,21 @@ import src.user_interaction as usr_int
 import src.file_handler as file_handler
 
 class AbstractNode:
-    def __init__(self, output_name="", requirements=[], user_can_retry=False):
+    """
+    Every child of abstractnode has to define process and initialize_node.
+    Its suggested to replace reinitialize_node
+    Its only necessary to replace plot_output if you allow users to retry
+    """
+    def __init__(self,
+                 node_title="Uinitialized Node Title",
+                 output_name="",
+                 requirements=[],
+                 user_can_retry=False):
         self.requirement_exists = {}
         self.output_name = output_name
         self.requirements = requirements
         self.user_can_retry = user_can_retry
+        self.node_title = node_title
         self.requirements_met = True
         
 
@@ -42,7 +52,12 @@ class AbstractNode:
                 elif user_response_id == usr_int.negative_response_id:
                     self.requirements_met = False
 
+    def node_intro_msg(self):
+        prompt = f"\n----Commencing {self.node_title}----\n"
+        print(prompt)
+
     def run(self):
+        self.node_intro_msg()
         self.check_requirements()
         if self.requirements_met is False:
             return None

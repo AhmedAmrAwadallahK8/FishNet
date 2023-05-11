@@ -16,7 +16,8 @@ class InvalidChannelError(Exception):
 
 class SamNucleusSegmenter(AbstractNode):
     def __init__(self):
-        super().__init__(output_name="SamNucleusMask",
+        super().__init__(node_title="SAM Nucleus Segmenter",
+                         output_name="SamNucleusMask",
                          requirements=[],
                          user_can_retry=True)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -252,6 +253,7 @@ class SamNucleusSegmenter(AbstractNode):
         plt.pause(0.01)
 
     def get_custom_sam_parameters(self):
+        print("")
         for param in self.custom_sam_settings:
             param_message = self.param_description[param]
             print(param_message)
@@ -261,6 +263,7 @@ class SamNucleusSegmenter(AbstractNode):
             if self.sam_param_type[param] == "int":
                 param_setting = int(param_setting)
             self.custom_sam_settings[param] = param_setting
+            print("")
             
 
     # I dont like this name
