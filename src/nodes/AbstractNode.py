@@ -8,7 +8,7 @@ class AbstractNode:
     Its only necessary to replace plot_output if you allow users to retry
     """
     def __init__(self,
-                 node_title="Uinitialized Node Title",
+                 node_title="Uninitialized Node Title",
                  output_name="",
                  requirements=[],
                  user_can_retry=False):
@@ -53,7 +53,7 @@ class AbstractNode:
                     self.requirements_met = False
 
     def node_intro_msg(self):
-        prompt = f"\n----Commencing {self.node_title}----\n"
+        prompt = f"\n---- Commencing {self.node_title} ----\n"
         print(prompt)
 
     def run(self):
