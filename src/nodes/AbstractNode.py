@@ -8,10 +8,10 @@ class AbstractNode:
     Its only necessary to replace plot_output if you allow users to retry
     """
     def __init__(self,
-                 node_title="Uninitialized Node Title",
                  output_name="",
                  requirements=[],
-                 user_can_retry=False):
+                 user_can_retry=False,
+                 node_title="Uninitialized Node Title"):
         self.requirement_exists = {}
         self.output_name = output_name
         self.requirements = requirements
