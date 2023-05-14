@@ -16,7 +16,7 @@ class InvalidChannelError(Exception):
 
 class SamNucleusSegmenter(AbstractNode):
     def __init__(self):
-        super().__init__(output_name="SamNucleusMask",
+        super().__init__(output_name="NucleusMask",
                          requirements=[],
                          user_can_retry=True,
                          node_title="SAM Nucleus Segmenter")
@@ -167,7 +167,8 @@ class SamNucleusSegmenter(AbstractNode):
             ax.imshow(np.dstack((img, m*0.35)))
 
     def generate_colored_mask(self, mask_img):
-        colored_mask = np.zeros(mask_img.shape)
+        color_shape = (mask_img.shape[0], mask_img.shape[1], 3)
+        color_mask = np.zeros(color_shape)
         for segment_id in range(1, int(mask_img.max())+1):
             id_instance = np.where(mask_img == segment_id, segment_id, 0)
             color_instance = np.where(mask_img == segment_id, 1, 0)
@@ -180,13 +181,13 @@ class SamNucleusSegmenter(AbstractNode):
                 red_pix = 255
                 green_pix = 255
                 blue_pix = 255
-            color_instance[:,:,0] = color_instance[:,:,0]*red_pix
-            color_instance[:,:,1] = color_instance[:,:,1]*green_pix
-            color_instance[:,:,2] = color_instance[:,:,2]*blue_pix
-            colored_mask = colored_mask + color_instance
-        colored_mask = colored_mask.astype(int)
-        return colored_mask
+            color_mask[:,:,0] += color_instance*red_pix
+            color_mask[:,:,1] += color_instance*green_pix
+            color_mask[:,:,2] += color_instance*blue_pix
+        color_mask = color_mask.astype(int)
+        return color_mask
 
+    # In the future change so that the entire process is 2d
     def generate_mask_img(self, img, sam_masks):
         mask_img = np.zeros(img.shape)
         instance_id = 0
@@ -199,12 +200,14 @@ class SamNucleusSegmenter(AbstractNode):
             mask_instance[:,:,2] =  (mask_instance[:,:,2] + segment_instance)
             mask_img = mask_img + mask_instance
         mask_img = mask_img.astype(int)
-        return mask_img
+        return mask_img[:,:,0]
 
     def generate_contour_img(self, mask_img):
         contour_col = (255, 0, 0)
-        contour_img = np.ones(mask_img.shape, dtype=np.uint8) * 255
-        gray_mask = cv2.cvtColor(mask_img.astype(np.uint8), cv2.COLOR_BGR2GRAY)
+        contour_shape = (mask_img.shape[0], mask_img.shape[1], 3)
+        contour_img = np.ones(contour_shape, dtype=np.uint8) * 255
+        gray_mask = mask_img.astype(np.uint8)
+        # gray_mask = cv2.cvtColor(mask_img.astype(np.uint8), cv2.COLOR_BGR2GRAY)
         
         cnts = cv2.findContours(gray_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         cnts = cnts[0] if len(cnts) == 2 else cnts[1]
