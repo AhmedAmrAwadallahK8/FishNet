@@ -61,6 +61,21 @@ def generate_contour_img(mask_img):
     cnts = cv2.findContours(gray_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cnts = cnts[0] if len(cnts) == 2 else cnts[1]
     for c in cnts:
-        cv2.drawContours(contour_img, [c], -1, contour_col, thickness=1)
+        cv2.drawContours(contour_img, [c], -1, contour_col, thickness=2)
     return contour_img
 
+def generate_anti_contour(base_contour):
+    anti_mask = np.where(base_contour > 0, 0, 1)
+    return anti_mask
+
+def generate_colored_contour(mask_img, contour_color):
+    contour_shape = (mask_img.shape[0], mask_img.shape[1], 3)
+    contour_img = np.zeros(contour_shape, dtype=np.uint8)
+    gray_mask = mask_img.astype(np.uint8)
+    # gray_mask = cv2.cvtColor(mask_img.astype(np.uint8), cv2.COLOR_BGR2GRAY)
+    
+    cnts = cv2.findContours(gray_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cnts = cnts[0] if len(cnts) == 2 else cnts[1]
+    for c in cnts:
+        cv2.drawContours(contour_img, [c], -1, contour_col, thickness=1)
+    return contour_img
