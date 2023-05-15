@@ -38,9 +38,11 @@ class SimpleNucleusCounter(AbstractNode):
         self.nucleus_mask = FishNet.pipeline_output[self.nucleus_mask_req]
         self.contour_img = ip.generate_contour_img(self.nucleus_mask)
         raw_img = ip.get_raw_nucleus_img()
-        anti_mask = ip.generate_anti_contour(self.contour_img).astype(np.uint8)
+        anti_ctr = ip.generate_anti_contour(self.contour_img).astype(np.uint8)
+        act_mask = ip.generate_activation_mask(self.nucleus_mask)
         self.prepared_img = ip.preprocess_img(raw_img).astype(np.uint8)
-        self.prepared_img *= anti_mask
+        self.prepared_img *= act_mask
+        self.prepared_img *= anti_ctr
         self.prepared_img += self.contour_img
         self.prepared_img = cv.cvtColor(self.prepared_img, cv.COLOR_BGR2GRAY)
 
@@ -80,9 +82,9 @@ class SimpleNucleusCounter(AbstractNode):
            elif parent_node_id == 0:
               curr_parent_id = curr_node_id
               particle_counts[curr_parent_id] = 0
-           # else:
-           #    if curr_parent_id in particle_counts.keys():
-           #       particle_counts[curr_parent_id] += 1
+           else:
+              if curr_parent_id in particle_counts.keys():
+                 particle_counts[curr_parent_id] += 1
 
         # Figure with particle_ids
         final_output = padded_outlined_img.copy()
@@ -91,7 +93,7 @@ class SimpleNucleusCounter(AbstractNode):
            rect = cv.minAreaRect(contours[c_id])
            box = cv.boxPoints(rect)
            box = np.int0(box)
-           final_output = cv.drawContours(final_output, [box], 0, (255, 0, 0), 10)
+           final_output = cv.drawContours(final_output, [box], 0, (255, 0, 0), 3)
 
         for c_id in particle_counts.keys():
            rect = cv.minAreaRect(contours[c_id])

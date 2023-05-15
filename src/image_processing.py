@@ -68,6 +68,12 @@ def generate_anti_contour(base_contour):
     anti_mask = np.where(base_contour > 0, 0, 1)
     return anti_mask
 
+def generate_activation_mask(mask_img):
+    act_mask = np.where(mask_img > 0, 1, 0).astype(np.uint8)
+    act_mask = cv2.cvtColor(act_mask, cv2.COLOR_GRAY2BGR)
+    return act_mask
+    
+
 def generate_colored_contour(mask_img, contour_color):
     contour_shape = (mask_img.shape[0], mask_img.shape[1], 3)
     contour_img = np.zeros(contour_shape, dtype=np.uint8)
@@ -77,5 +83,5 @@ def generate_colored_contour(mask_img, contour_color):
     cnts = cv2.findContours(gray_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cnts = cnts[0] if len(cnts) == 2 else cnts[1]
     for c in cnts:
-        cv2.drawContours(contour_img, [c], -1, contour_col, thickness=1)
+        cv2.drawContours(contour_img, [c], -1, contour_col, thickness=2)
     return contour_img
