@@ -25,6 +25,7 @@ class SamNucleusSegmenter(AbstractNode):
         self.prepared_img = None
         self.mask_img = None
         self.sam = None
+        self.save_file_name = "sam_nucleus_segmentation.png"
         self.default_sam_settings = {
             "points_per_side": 32, #32
             "pred_iou_thresh": 0.97, #0.95
@@ -301,7 +302,16 @@ class SamNucleusSegmenter(AbstractNode):
     def reinitialize_node(self):
         self.prepare_sam_hyperparameters()
         self.quick_sam_setup()
-        
+
+    def save_output(self):
+        self.save_img(self.mask_img, self.save_file_name)
+        # folder_name = FishNet.save_folder
+        # mask_file_path = folder_name + self.save_file_name
+        # fig, ax = plt.subplots(figsize=(16, 16))
+        # plt.axis("off")
+        # ax.imshow(self.mask_img, cmap="gray")
+        # plt.savefig(mask_file_path, bbox_inches="tight")
+        # plt.close(fig)
 
     def process(self):
         sam_masks = self.get_sam_segment_data(self.prepared_img)

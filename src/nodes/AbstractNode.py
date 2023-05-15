@@ -1,9 +1,11 @@
 import src.user_interaction as usr_int
 import src.file_handler as file_handler
+import matplotlib.pyplot as plt
 
 class AbstractNode:
     """
     Every child of abstractnode has to define process and initialize_node.
+    If you have output to save define save_output.
     Its suggested to replace reinitialize_node
     Its only necessary to replace plot_output if you allow users to retry
     """
@@ -56,6 +58,19 @@ class AbstractNode:
         prompt = f"\n---- Commencing {self.node_title} ----\n"
         print(prompt)
 
+    def save_output(self):
+        pass
+
+    def save_img(self, img, img_name, cmap="gray"):
+        from src.fishnet import FishNet
+        folder_name = FishNet.save_folder
+        img_file_path = folder_name + img_name
+        fig, ax = plt.subplots(figsize=(16, 16))
+        plt.axis("off")
+        ax.imshow(img, cmap=cmap)
+        plt.savefig(img_file_path, bbox_inches="tight")
+        plt.close(fig)
+
     def run(self):
         self.node_intro_msg()
         self.check_requirements()
@@ -76,6 +91,7 @@ class AbstractNode:
                 # Close output maybe?
 
                 if usr_feedback == usr_int.satisfied_response_id:
+                    self.save_output()
                     return node_output
                 elif usr_feedback == usr_int.quit_response_id:
                     return None
@@ -83,4 +99,5 @@ class AbstractNode:
                     first_pass = False
         else:
             node_output = self.process()
+            self.save_output()
             return node_output

@@ -4,6 +4,7 @@ import cv2 as cv
 import numpy as np
 import src.user_interaction as usr_int
 import sys
+import os
 from src.common import TempPipeline
 from src.nodes.SamNucleusSegmenter import SamNucleusSegmenter
 from src.nodes.SimpleNucleusCounter import SimpleNucleusCounter
@@ -22,6 +23,7 @@ class SampleNode():
 class FishNet():
    raw_imgs = []
    pipeline_output = {}
+   save_folder = "output/"
    def __init__(self):
       self.placeholder = 0
       self.version = 0.01
@@ -41,6 +43,9 @@ class FishNet():
 
       self.welcome_message = f"Welcome to FishNet v{self.version}!"
       self.goodbye_message = f"Thank you for using FishNet! Goodbye."
+
+      if not os.path.exists(FishNet.save_folder):
+          os.makedirs(FishNet.save_folder)
 
    def run(self):
       self.welcome()

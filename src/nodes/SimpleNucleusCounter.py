@@ -19,7 +19,10 @@ class SimpleNucleusCounter(AbstractNode):
         self.nucleus_mask = None
         self.contour_img = None
         self.prepared_img = None
-        self.final_output = None
+        self.labeled_img = None
+        self.particle_counts = None
+        self.labeled_img_name = "simple_labeled_nuclei.png"
+        self.particle_csv = "simple_particle_counts.csv"
 
     def generate_contour_img(self, mask_img):
         contour_col = (255, 0, 0)
@@ -49,8 +52,24 @@ class SimpleNucleusCounter(AbstractNode):
     def plot_output(self):
         plt.figure(figsize=(12,8))
         plt.axis('off')
-        plt.imshow(self.final_output)
+        plt.imshow(self.labeled_img)
         plt.pause(0.01) 
+
+    def save_output(self):
+        from src.fishnet import FishNet
+        self.save_img(self.labeled_img, self.labeled_img_name)
+
+        # csv of particle counts
+        particle_csv = FishNet.save_folder + self.particle_csv
+        csv_file = open(particle_csv, "w")
+        csv_file.write("id,counts\n")
+        for id in self.particle_counts.keys():
+           counts = self.particle_counts[id]
+           observation = str(id) + "," + str(counts) + "\n"
+           csv_file.write(observation) 
+     
+        csv_file.write("\n")
+        csv_file.close()
 
     def process(self):
         # Contour Hierarchy
@@ -113,9 +132,5 @@ class SimpleNucleusCounter(AbstractNode):
                       color=(0,255,0),
                       thickness=2)
         
-        self.final_output = final_output
-        # file_name = output_folder + "/" + img_name + "_labeled_contours.png"
-        # fig, ax = plt.subplots(figsize=(16, 16))
-        # ax.imshow(final_output, cmap="gray")
-        # plt.axis("off")
-        # 
+        self.labeled_img = final_output
+        self.particle_counts = particle_counts
