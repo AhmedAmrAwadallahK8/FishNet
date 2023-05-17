@@ -23,6 +23,15 @@ def get_raw_nucleus_img():
     raw_img = FishNet.raw_imgs[0][nucleus_channel]
     return raw_img
 
+def get_all_channel_img():
+    # This is not generalizable
+    from src.fishnet import FishNet
+    raw_img = FishNet.raw_imgs[0][0]
+    raw_img += FishNet.raw_imgs[0][1]  
+    raw_img += FishNet.raw_imgs[0][2]
+    raw_img += FishNet.raw_imgs[0][3]
+    return raw_img
+
 def rescale_img(img):
     img_scaled = img.copy()
     if np.amax(img) > 255:
@@ -64,6 +73,25 @@ def generate_contour_img(mask_img):
         cv2.drawContours(contour_img, [c], -1, contour_col, thickness=2)
     return contour_img
 
+def generate_advanced_contour_img(mask_img):
+    contour_col = (255, 255, 255)
+    contour_shape = (mask_img.shape[0], mask_img.shape[1], 3)
+    final_contour_img = np.zeros(contour_shape, dtype=np.uint8)
+    gray_mask = mask_img.astype(np.uint8)
+    max_id = mask_img.max()
+
+    # gray_mask = cv2.cvtColor(mask_img.astype(np.uint8), cv2.COLOR_BGR2GRAY)
+    for id in range(1, max_id+1):
+        contour_img = np.zeros(contour_shape, dtype=np.uint8)
+        mask_instance = np.where(gray_mask == id, 255, 0).astype(np.uint8)
+        cnts = cv2.findContours(mask_instance, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        cnts = cnts[0] if len(cnts) == 2 else cnts[1]
+        for c in cnts:
+            cv2.drawContours(contour_img, [c], -1, contour_col, thickness=2)
+        final_contour_img += contour_img
+        final_contour_img = np.where(final_contour_img > 0, 255, 0).astype(np.uint8)
+    return final_contour_img
+
 def generate_anti_contour(base_contour):
     anti_mask = np.where(base_contour > 0, 0, 1)
     return anti_mask
@@ -85,3 +113,24 @@ def generate_colored_contour(mask_img, contour_color):
     for c in cnts:
         cv2.drawContours(contour_img, [c], -1, contour_col, thickness=2)
     return contour_img
+
+def generate_colored_mask(mask_img):
+    color_shape = (mask_img.shape[0], mask_img.shape[1], 3)
+    color_mask = np.zeros(color_shape)
+    for segment_id in range(1, int(mask_img.max())+1):
+        id_instance = np.where(mask_img == segment_id, segment_id, 0)
+        color_instance = np.where(mask_img == segment_id, 1, 0)
+        red_pix = np.random.randint(256, size=1)[0]
+        green_pix = np.random.randint(256, size=1)[0]
+        blue_pix = np.random.randint(256, size=1)[0]
+
+        #When the color is close to black default to making it white
+        if (red_pix + green_pix + blue_pix) <= 5:
+            red_pix = 255
+            green_pix = 255
+            blue_pix = 255
+        color_mask[:,:,0] += color_instance*red_pix
+        color_mask[:,:,1] += color_instance*green_pix
+        color_mask[:,:,2] += color_instance*blue_pix
+    color_mask = color_mask.astype(int)
+    return color_mask
