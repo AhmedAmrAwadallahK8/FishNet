@@ -110,7 +110,6 @@ class MSSGui():
         self.curr_img =  ImageTk.PhotoImage(image=Image.fromarray(img_arr))
         self.canvas.itemconfig(self.img_container, image=self.curr_img)
         # self.canvas.create_image(20, 20, anchor="nw", image=self.curr_img)
-        print("Hello??")
 
 
 class ManualSamSegmenter(AbstractNode):
@@ -146,8 +145,9 @@ class ManualSamSegmenter(AbstractNode):
 
     def process_img(self):
         sam_masks = self.apply_sam_pred()
-        print(sam_masks.shape)
-        mask_img = np.where(sam_masks == True, 1, 0)[0,:,:].astype(np.uint8)
+            
+        mask_img =  sp.generate_mask_img_manual(self.prepared_img, sam_masks)
+        # mask_img = np.where(sam_masks == True, 1, 0)[0,:,:].astype(np.uint8)
         # mask_3d = np.where(sam_masks == True, 255, 0)[0,:,:].astype(np.uint8)
         # mask_3d = cv2.cvtColor(mask_3d, cv2.COLOR_GRAY2BGR)
         # mask_img = sp.generate_mask_img(self.prepared_img, sam_masks)
@@ -161,18 +161,24 @@ class ManualSamSegmenter(AbstractNode):
         # self.curr_img = self.prepared_img.astype(np.uint8)
         # print(mask_3d.shape)
         # self.curr_img *= mask_3d
+        # scuffed_mask = np.where(mask_img > 0, 255, 0)
+        # mask_3d = cv2.cvtColor(scuffed_mask.astype(np.uint8), cv2.COLOR_GRAY2BGR)
         return self.curr_img
 
     def apply_sam_pred(self):
-        arr_boxes = np.array(self.input_boxes)
-        arr_points = np.array(self.input_points)
-        arr_labels = np.array(self.input_labels)
+        # arr_boxes = np.array(self.input_boxes)
+        # arr_points = np.array(self.input_points)
+        # arr_labels = np.array(self.input_labels)
+        tensor_boxes = torch.tensor(self.input_boxes, device=self.device)
         print(self.input_boxes)
-        masks, _, _ = self.sam_predictor.predict(
-            point_coords=arr_points,
-            point_labels=arr_labels,
-            box=arr_boxes,
+        transformed_boxes = self.sam_predictor.transform.apply_boxes_torch(
+            tensor_boxes, self.prepared_img.shape[:2])
+        masks, _, _ = self.sam_predictor.predict_torch(
+            point_coords=None,
+            point_labels=None,
+            boxes=transformed_boxes,
             multimask_output=False)
+        masks = masks.cpu().numpy()
         return masks
 
     def process(self):
