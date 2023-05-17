@@ -74,7 +74,7 @@ class MSSGui():
             self.rect.get_box(start, end)
         self.rect.autodraw(fill="", width=2, command=on_drag)
         
-        self.canvas.create_image(20, 20, anchor="nw", image=self.curr_img)
+        self.img_container = self.canvas.create_image(0, 0, anchor="nw", image=self.curr_img)
 
         self.button_frame = tk.Frame(self.root)
         self.button_frame.columnconfigure(0, weight=1)
@@ -98,9 +98,9 @@ class MSSGui():
         self.master_node.hello_world()
 
     def segment_box(self, box):
-        print(box)
-        
-
+        self.master_node.updates_boxes(box)
+        img_arr = self.master_node.process_img()
+        self.update_img(img_arr)
 
     def run(self):
         self.root.mainloop()
@@ -108,7 +108,9 @@ class MSSGui():
     def update_img(self, img_arr):
         img_arr = img_arr.astype(np.uint8)
         self.curr_img =  ImageTk.PhotoImage(image=Image.fromarray(img_arr))
-        self.canvas.create_image(20, 20, anchor="nw", image=self.curr_img)
+        self.canvas.itemconfig(self.img_container, image=self.curr_img)
+        # self.canvas.create_image(20, 20, anchor="nw", image=self.curr_img)
+        print("Hello??")
 
 
 class ManualSamSegmenter(AbstractNode):
@@ -121,9 +123,9 @@ class ManualSamSegmenter(AbstractNode):
         self.sam_mask_generator = None
         self.sam = None
         self.sam_predictor = None
-        self.input_boxes = [[]]
-        self.input_points = [[]]
-        self.input_labels = []
+        self.input_boxes = []
+        self.input_points = [[0,0]]
+        self.input_labels = [0]
         self.gui = None
         self.prepared_img = None
         self.curr_img = None
@@ -134,10 +136,21 @@ class ManualSamSegmenter(AbstractNode):
         self.sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
         self.sam.to(device=self.device)
         self.sam_predictor = SamPredictor(self.sam)
+        self.sam_predictor.set_image(self.prepared_img)
+
+    def gui_update_img(self):
+        self.gui.update_img(self.curr_img)
+
+    def updates_boxes(self, box):
+        self.input_boxes.append(box)
 
     def process_img(self):
         sam_masks = self.apply_sam_pred()
-        mask_img = sp.generate_mask_img(self.prepared_img, sam_masks)
+        print(sam_masks.shape)
+        mask_img = np.where(sam_masks == True, 1, 0)[0,:,:].astype(np.uint8)
+        # mask_3d = np.where(sam_masks == True, 255, 0)[0,:,:].astype(np.uint8)
+        # mask_3d = cv2.cvtColor(mask_3d, cv2.COLOR_GRAY2BGR)
+        # mask_img = sp.generate_mask_img(self.prepared_img, sam_masks)
         contour_img = ip.generate_contour_img(mask_img)
         anti_ctr = ip.generate_anti_contour(contour_img).astype(np.uint8)
         # act_mask = ip.generate_activation_mask(mask_img)
@@ -145,18 +158,22 @@ class ManualSamSegmenter(AbstractNode):
         self.curr_img *= anti_ctr
         self.curr_img += contour_img
 
+        # self.curr_img = self.prepared_img.astype(np.uint8)
+        # print(mask_3d.shape)
+        # self.curr_img *= mask_3d
+        return self.curr_img
+
     def apply_sam_pred(self):
         arr_boxes = np.array(self.input_boxes)
         arr_points = np.array(self.input_points)
         arr_labels = np.array(self.input_labels)
-        masks, _, _predictor.predict(
-            point_corrds=arr_points,
-            point_labels=input_labels,
+        print(self.input_boxes)
+        masks, _, _ = self.sam_predictor.predict(
+            point_coords=arr_points,
+            point_labels=arr_labels,
             box=arr_boxes,
             multimask_output=False)
         return masks
-        
-
 
     def process(self):
         self.gui.run()
@@ -170,7 +187,7 @@ class ManualSamSegmenter(AbstractNode):
         self.prepared_img = ip.preprocess_img(raw_img)
         self.gui = MSSGui(self)
         self.gui.update_img(self.prepared_img)
-        # self.setup_sam()
+        self.setup_sam()
 
     def plot_output(self):
         pass
