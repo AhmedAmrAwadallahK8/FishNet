@@ -9,6 +9,7 @@ from src.common import TempPipeline
 from src.nodes.SamNucleusSegmenter import SamNucleusSegmenter
 from src.nodes.SimpleNucleusCounter import SimpleNucleusCounter
 from src.nodes.ManualSamSegmenter import ManualSamSegmenter
+from src.nodes.ManualSamCellSegmenter import ManualSamCellSegmenter
 
 
 class SampleNode():
@@ -32,7 +33,7 @@ class FishNet():
       self.img_file = ""
       # self.all_imgs = []
       # self.nodes = [ManualSamSegmenter()]
-      self.nodes = [SamNucleusSegmenter(), SimpleNucleusCounter()]
+      self.nodes = [ManualSamCellSegmenter()]
       self.pipeline = TempPipeline(self.nodes)
       self.valid_responses = ["yes", "y", "no", "n"]
       self.negative_responses = ["no", "n"]
