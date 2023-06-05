@@ -31,7 +31,8 @@ class FishNet():
       self.valid_file_types = ["nd2"]
       self.img_file = ""
       # self.all_imgs = []
-      self.nodes = [ManualSamSegmenter()]
+      # self.nodes = [ManualSamSegmenter()]
+      self.nodes = [SamNucleusSegmenter(), SimpleNucleusCounter()]
       self.pipeline = TempPipeline(self.nodes)
       self.valid_responses = ["yes", "y", "no", "n"]
       self.negative_responses = ["no", "n"]
