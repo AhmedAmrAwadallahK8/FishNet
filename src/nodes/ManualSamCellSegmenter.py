@@ -2,8 +2,9 @@
 # TODO
 # Support normal image size
 # Support Batch Processing
-    # CURR Shift to batch processing
+    # DONE Shift to batch processing
 # Support Easily remove and add Rect
+    # CURR
 # TOgglable rect view
 # Togglable previous selection view
     # For example let viewer see previous nucleus segmentation choices overlay
@@ -24,11 +25,14 @@ import src.sam_processing as sp
 from PIL import Image, ImageTk
 
 class RectTracker:
-    def __init__(self, canvas, gui):
+    def __init__(self, canvas, gui, box_tag):
         self.canvas = canvas
+        self.rect_count = 1
         self.gui = gui
+        self.box_tag = box_tag
         self.item = None
         self.box = None
+        self.boxes = []
 		
     def draw(self, start, end, **opts):
         return self.canvas.create_rectangle(*(list(start)+list(end)), **opts)
@@ -48,17 +52,22 @@ class RectTracker:
             return
         if self.item is not None:
             self.canvas.delete(self.item)
-        self.item = self.draw(self.start, (event.x, event.y), **self.rectopts)
+        self.item = self.draw(
+            self.start,
+            (event.x, event.y),
+            tags=(self.box_tag),
+            **self.rectopts)
         self._command(self.start, (event.x, event.y))
 	
     def __stop(self, event):
         self.start = None
-        self.canvas.delete(self.item)
         self.item = None
-        self.give_final_box()
+        # self.canvas.delete(self.item)
+        # self.give_final_box()
 
     def give_final_box(self):
-        self.gui.segment_box(self.box)
+        pass
+        # self.gui.segment_box(self.box)
 	
     def get_box(self, start, end, tags=None, ignoretags=None, ignore=[]):
         xlow = min(start[0], end[0])
@@ -75,12 +84,13 @@ class MSSGui():
         self.root = tk.Tk()
         self.root.geometry("600x600")
         self.root.title("Manual Sam Segmenter")
+        self.box_tag = "box"
 
         img_arr = np.zeros((512,512,3)).astype(np.uint8)
         self.curr_img =  ImageTk.PhotoImage(image=Image.fromarray(img_arr))
         self.canvas = tk.Canvas(self.root, width=512, height=512)
         self.canvas.pack()
-        self.rect = RectTracker(self.canvas, self)
+        self.rect = RectTracker(self.canvas, self, self.box_tag)
         def on_drag(start, end):
             self.rect.get_box(start, end)
         self.rect.autodraw(fill="", width=2, command=on_drag)
@@ -120,7 +130,17 @@ class MSSGui():
         self.button_frame.pack(fill='x')
         self.curr_view = "default"
 
+    def get_bboxes(self):
+        bboxes = []
+        boxes = []
+        boxes.extend(self.canvas.find_withtag(self.box_tag))
+        for box in boxes:
+            bboxes.append(self.canvas.coords(box))
+        return bboxes
+
     def segment(self):
+        bboxes = self.get_bboxes()
+        self.master_node.update_bboxes(bboxes)
         self.master_node.process_img()
         self.refresh_view()
         img_arr = self.master_node.get_curr_img()
@@ -149,7 +169,8 @@ class MSSGui():
         self.update_img(img_arr)
 
     def segment_box(self, box):
-        self.master_node.updates_boxes(box)
+        pass
+        # self.master_node.updates_boxes(box)
         # self.master_node.process_img()
 
     def run(self):
@@ -203,7 +224,10 @@ class ManualSamCellSegmenter(AbstractNode):
     def gui_update_img(self):
         self.gui.update_img(self.curr_img)
 
-    def updates_boxes(self, box):
+    def update_bboxes(self, bboxes):
+        self.input_boxes = bboxes
+
+    def push_box(self, box):
         self.input_boxes.append(box)
 
     def get_curr_img(self):
