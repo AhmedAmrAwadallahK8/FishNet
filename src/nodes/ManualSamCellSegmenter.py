@@ -1,11 +1,16 @@
 # Two part process
 # TODO
-# Support normal image size
 # Support Batch Processing
     # DONE Shift to batch processing
 # Support Easily remove and add Rect
-    # CURR
-# TOgglable rect view
+    # DONE
+# Two Object Segmentation
+    # Need to decide if make a new GUI or continue to use the same
+# Try to do everything in 1 GUI
+# Update Reset
+# Move on to Dot Counting but still plenty to do after
+# Support normal image size
+# Togglable rect view
 # Togglable previous selection view
     # For example let viewer see previous nucleus segmentation choices overlay
 # Let user choose channel view
@@ -209,6 +214,14 @@ class MSSGui():
     def reset(self):
         self.master_node.soft_reset()
         self.refresh_view()
+        self.remove_all_boxes()
+
+    def remove_all_boxes(self):
+        boxes = []
+        boxes.extend(self.canvas.find_withtag(self.box_tag))
+        for box in boxes:
+            self.canvas.delete(box)
+        
         
     def segment_view(self):
         self.curr_view = "segment"
