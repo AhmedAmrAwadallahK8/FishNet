@@ -5,9 +5,17 @@
 # Support Easily remove and add Rect
     # DONE
 # Two Object Segmentation
-    # Need to decide if make a new GUI or continue to use the same
+    # DONE Need to decide if make a new GUI or continue to use the same
+    # DONE Moving forward with single GUI
 # Try to do everything in 1 GUI
+    # So far so good...
 # Update Reset
+    # DONE
+# Nucleus > Cytoplasm Logic Flow
+    # DONE Base flow
+    # Need to post process results to link nuclei with cytoplasm
+    # Need to adjust cytoplasm to not include nuclei in segmentation
+# Add previous segmentation overlay button
 # Move on to Dot Counting but still plenty to do after
 # Support normal image size
 # Togglable rect view
@@ -161,10 +169,10 @@ class MSSGui():
         self.button_frame.columnconfigure(3, weight=1)
         self.button_frame.columnconfigure(4, weight=1)
 
-        self.done_button = tk.Button(self.button_frame,
-                                     text="Done",
-                                     command=self.done)
-        self.done_button.grid(row=0, column=0, sticky=tk.W+tk.E)
+        self.continue_button = tk.Button(self.button_frame,
+                                         text="Continue",
+                                         command=self.continue_program)
+        self.continue_button.grid(row=0, column=0, sticky=tk.W+tk.E)
 
         self.reset_button = tk.Button(self.button_frame,
                                       text="Reset",
@@ -220,7 +228,7 @@ class MSSGui():
         self.refresh_view()
         self.remove_all_boxes()
 
-    def done(self):
+    def continue_program(self):
         bboxes = self.get_bboxes()
         self.master_node.update_bboxes(bboxes)
         mask_class = self.get_mask_class_from_user()
@@ -305,9 +313,9 @@ class ManualSamCellSegmenter(AbstractNode):
         self.prepared_img = None
         self.curr_img = None
         self.segment_img = None
-        self.class1 = "nucleus"
-        self.class2 = "cytplasm"
-        self.output_pack = {self.class1: None, self.class2: None}
+        self.nuc_class = "nucleus"
+        self.cyto_class = "cytoplasm"
+        self.output_pack = {self.nuc_class: None, self.cyto_class: None}
 
     def pop_boxes(self):
         if len(self.input_boxes) > 0:
@@ -377,9 +385,74 @@ class ManualSamCellSegmenter(AbstractNode):
         masks = masks.cpu().numpy()
         return masks
 
+    def stitch_cells(self):
+        temp_nuc_id = -1
+        stitched_nuc_id_mask = None
+        nuc_id_mask = self.output_pack[self.nuc_class]
+        cyto_id_mask = self.output_pack[self.cyto_class]
+        nuc_activation = np.where(nuc_id_mask > 0, 1, 0)
+
+        cyto_nuc_activated = cyto_id_mask * nuc_activation
+        valid_cytos = np.unique(cyto_nuc_activated)
+        for cyto_id in valid_cytos:
+            if cyto_id == 0:
+                continue
+            cyto_id_activation = np.where(cyto_id_mask == cyto_id, 1, 0)
+            nuc_cyto_id_activated = cyto_id_activation*nuc_id_mask
+            collected_nucs = np.unique(nuc_cyto_id_activated)
+            for nuc_id in collected_nucs:
+                if nuc_id == 0:
+                    continue
+                nuc_id_activation = np.where(nuc_id_mask == nuc_id, 1, 0)
+                cyto_nuc_id_activated = nuc_id_activation*cyto_id_mask
+                master_cyto_id = np.unique(cyto_nuc_id_activated)[1]
+                id_collision_sum = np.sum(
+                    np.where(
+                        nuc_id_mask == master_cyto_id,
+                        1,
+                        0
+                    )
+                )
+                # Check if a nucleus already has a cytoplasm id
+                # if it does then handle it
+                if id_collision_sum == 0:
+                    stitched_nuc_id_mask = np.where(nuc_id_mask == nuc_id,
+                        master_cyto_id,
+                        nuc_id_mask)
+                else:
+                    stitched_nuc_id_mask = np.where(nuc_id_mask == master_cyto_id,
+                             temp_nuc_id,
+                             nuc_id_mask)
+                    stitched_nuc_id_mask = np.where(nuc_id_mask == nuc_id,
+                             master_cyto_id,
+                             nuc_id_mask)
+                    stitched_nuc_id_mask = np.where(nuc_id_mask == temp_nuc_id,
+                             nuc_id,
+                             nuc_id_mask)
+        self.output_pack[self.nuc_class] = stitched_nuc_id_mask
+        return True
+
+    def remove_nucleus_from_cytoplasm_mask(self, after_stitch):
+        if not after_stitch:
+            return
+        nuc_id_mask = self.output_pack[self.nuc_class]
+        cyto_id_mask = self.output_pack[self.cyto_class]
+        anti_nuc_activation = np.where(nuc_id_mask > 0, 0, 1)
+        updated_cyto_id_mask = cyto_id_mask * anti_nuc_activation
+        self.output_pack[self.cyto_class] = updated_cyto_id_mask
+        output_compare = np.hstack((updated_cyto_id_mask, nuc_id_mask))
+        plt.figure(figsize=(12,8))
+        plt.axis('off')
+        plt.imshow(output_compare)
+        plt.show()
+        
+        
+
     def process(self):
         self.gui.run()
-        pass
+        stitch_compelete = self.stitch_cells()
+        self.remove_nucleus_from_cytoplasm_mask(stitch_compelete)
+        print("DONE")
 
     def hello_world(self):
         print("Hello World")
