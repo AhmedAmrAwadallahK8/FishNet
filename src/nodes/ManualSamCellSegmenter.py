@@ -78,6 +78,56 @@ class RectTracker:
 	
         self.box = [xlow, ylow, xhigh, yhigh]
 
+    def mouse_hit_test(self, pos, tags=None, ignoretags=None, ignore=[]):
+        def get_area(rect):
+            xlow, ylow, xhigh, yhigh = self.canvas.coords(rect)
+            return (xhigh-xlow)*(yhigh-ylow)
+        ignore = set(ignore)
+        ignore.update([self.item])
+		
+        if isinstance(tags, str):
+            tags = [tags]
+		
+        if tags:
+            tocheck = []
+            for tag in tags:
+                tocheck.extend(self.canvas.find_withtag(tag))
+        else:
+            tocheck = self.canvas.find_all()
+        tocheck = [x for x in tocheck if x != self.item]
+        if ignoretags:
+            if not hasattr(ignoretags, '__iter__'):
+                ignoretags = [ignoretags]
+            tocheck = [x for x in tocheck if x not in self.canvas.find_withtag(it) for it in ignoretags]
+		
+        self.items = tocheck
+        items = []
+        for item in tocheck:
+            if item not in ignore:
+                xlow, ylow, xhigh, yhigh = self.canvas.coords(item)
+                x, y = pos[0], pos[1]
+                if (xlow < x < xhigh) and (ylow < y < yhigh):
+                    items.append(item)
+        smallest_item = None
+        smallest_area = 0
+        first = True
+        for item in items:
+            if len(items) < 1:
+                break
+            if len(items) == 1:
+                smallest_item = item
+                break
+            if first:
+                first = False
+                smallest_item = item
+                smallest_area = get_area(item)
+            else:
+                curr_area = get_area(item)
+                if curr_area < smallest_area:
+                    smallest_item = item
+                    smallest_area = curr_area
+        return smallest_item
+
 class MSSGui():
     def __init__(self, owner):
         self.master_node = owner
@@ -129,6 +179,8 @@ class MSSGui():
 
         self.button_frame.pack(fill='x')
         self.curr_view = "default"
+        self.canvas.bind('<Motion>', self.on_mouse_over, '+')
+        self.canvas.bind('<Button-3>', self.on_click, '+')
 
     def get_bboxes(self):
         bboxes = []
@@ -181,6 +233,23 @@ class MSSGui():
         self.curr_img =  ImageTk.PhotoImage(image=Image.fromarray(img_arr))
         self.canvas.itemconfig(self.img_container, image=self.curr_img)
         # self.canvas.create_image(20, 20, anchor="nw", image=self.curr_img)
+
+    def on_click(self, event):
+        x = event.x
+        y = event.y
+        selected_rect = self.rect.mouse_hit_test([x,y], tags=[self.box_tag])
+        if selected_rect is not None:
+            self.canvas.delete(selected_rect)
+
+    def on_mouse_over(self, event):
+        x = event.x
+        y = event.y
+        selected_rect = self.rect.mouse_hit_test([x,y], tags=[self.box_tag])
+        for sub_rect in self.rect.items:
+            if sub_rect is not selected_rect:
+                self.canvas.itemconfig(sub_rect, outline='black')
+            else:
+                self.canvas.itemconfig(sub_rect, outline='red')
 
 
 class ManualSamCellSegmenter(AbstractNode):
