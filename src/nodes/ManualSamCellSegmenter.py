@@ -224,7 +224,7 @@ class MSSGui():
         bboxes = self.get_bboxes()
         self.master_node.update_bboxes(bboxes)
         mask_class = self.get_mask_class_from_user()
-        self.master_node.produce_and_store_mask()
+        self.master_node.produce_and_store_mask(mask_class)
         self.curr_rep += 1
         if self.curr_rep == self.image_reps:
             self.exit_gui()
