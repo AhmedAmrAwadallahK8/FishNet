@@ -2,6 +2,7 @@
 # TODO
 # Support normal image size
 # Support Batch Processing
+    # CURR Shift to batch processing
 # Support Easily remove and add Rect
 # TOgglable rect view
 # Togglable previous selection view
@@ -111,18 +112,19 @@ class MSSGui():
                                      command=self.default_view)
         self.default_view_button.grid(row=0, column=3, sticky=tk.W+tk.E)
 
-        self.undo_button = tk.Button(self.button_frame,
-                                     text="Undo Last",
-                                     command=self.undo)
-        self.undo_button.grid(row=0, column=4, sticky=tk.W+tk.E)
+        self.segment_button = tk.Button(self.button_frame,
+                                     text="Segment Image",
+                                     command=self.segment)
+        self.segment_button.grid(row=0, column=4, sticky=tk.W+tk.E)
 
         self.button_frame.pack(fill='x')
         self.curr_view = "default"
 
-    def undo(self):
-        self.master_node.pop_boxes()
+    def segment(self):
         self.master_node.process_img()
         self.refresh_view()
+        img_arr = self.master_node.get_curr_img()
+        self.update_img(img_arr)
 
     def refresh_view(self):
         if self.curr_view == "default":
@@ -148,9 +150,7 @@ class MSSGui():
 
     def segment_box(self, box):
         self.master_node.updates_boxes(box)
-        self.master_node.process_img()
-        img_arr = self.master_node.get_curr_img()
-        self.update_img(img_arr)
+        # self.master_node.process_img()
 
     def run(self):
         self.root.mainloop()
@@ -221,27 +221,13 @@ class ManualSamCellSegmenter(AbstractNode):
             
         mask_img =  sp.generate_mask_img_manual(self.prepared_img, sam_masks)
         self.segment_img = ip.generate_colored_mask(mask_img)
-        # mask_img = np.where(sam_masks == True, 1, 0)[0,:,:].astype(np.uint8)
-        # mask_3d = np.where(sam_masks == True, 255, 0)[0,:,:].astype(np.uint8)
-        # mask_3d = cv2.cvtColor(mask_3d, cv2.COLOR_GRAY2BGR)
-        # mask_img = sp.generate_mask_img(self.prepared_img, sam_masks)
         contour_img = ip.generate_advanced_contour_img(mask_img)
         anti_ctr = ip.generate_anti_contour(contour_img).astype(np.uint8)
-        # act_mask = ip.generate_activation_mask(mask_img)
         self.curr_img = self.prepared_img.astype(np.uint8)
         self.curr_img *= anti_ctr
         self.curr_img += contour_img
 
-        # self.curr_img = self.prepared_img.astype(np.uint8)
-        # print(mask_3d.shape)
-        # self.curr_img *= mask_3d
-        # scuffed_mask = np.where(mask_img > 0, 255, 0)
-        # mask_3d = cv2.cvtColor(scuffed_mask.astype(np.uint8), cv2.COLOR_GRAY2BGR)
-
     def apply_sam_pred(self):
-        # arr_boxes = np.array(self.input_boxes)
-        # arr_points = np.array(self.input_points)
-        # arr_labels = np.array(self.input_labels)
         tensor_boxes = torch.tensor(self.input_boxes, device=self.device)
         transformed_boxes = self.sam_predictor.transform.apply_boxes_torch(
             tensor_boxes, self.prepared_img.shape[:2])
@@ -261,7 +247,6 @@ class ManualSamCellSegmenter(AbstractNode):
         print("Hello World")
 
     def initialize_node(self):
-        # raw_img = ip.get_raw_nucleus_img()
         raw_img = ip.get_all_channel_img()
         self.prepared_img = ip.preprocess_img(raw_img)
         self.curr_img = self.prepared_img.copy()
