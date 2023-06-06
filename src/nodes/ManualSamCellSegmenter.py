@@ -135,6 +135,8 @@ class RectTracker:
 
 class MSSGui():
     def __init__(self, owner):
+        self.image_reps = 2
+        self.curr_rep = 0
         self.master_node = owner
         self.root = tk.Tk()
         self.root.geometry("600x600")
@@ -159,7 +161,9 @@ class MSSGui():
         self.button_frame.columnconfigure(3, weight=1)
         self.button_frame.columnconfigure(4, weight=1)
 
-        self.done_button = tk.Button(self.button_frame, text="Done")
+        self.done_button = tk.Button(self.button_frame,
+                                     text="Done",
+                                     command=self.done)
         self.done_button.grid(row=0, column=0, sticky=tk.W+tk.E)
 
         self.reset_button = tk.Button(self.button_frame,
@@ -216,12 +220,31 @@ class MSSGui():
         self.refresh_view()
         self.remove_all_boxes()
 
+    def done(self):
+        bboxes = self.get_bboxes()
+        self.master_node.update_bboxes(bboxes)
+        mask_class = self.get_mask_class_from_user()
+        self.master_node.produce_and_store_mask()
+        self.curr_rep += 1
+        if self.curr_rep == self.image_reps:
+            self.exit_gui()
+        else:
+            self.reset()
+
+    def get_mask_class_from_user(self):
+        if self.curr_rep == 0:
+            return "nucleus"
+        elif self.curr_rep == 1:
+            return "cytoplasm"
+
+    def exit_gui(self):
+        self.root.destroy()
+
     def remove_all_boxes(self):
         boxes = []
         boxes.extend(self.canvas.find_withtag(self.box_tag))
         for box in boxes:
             self.canvas.delete(box)
-        
         
     def segment_view(self):
         self.curr_view = "segment"
@@ -267,10 +290,10 @@ class MSSGui():
 
 class ManualSamCellSegmenter(AbstractNode):
     def __init__(self):
-        super().__init__(output_name="NucleusMask",
+        super().__init__(output_name="CellMaskPack",
                          requirements=[],
                          user_can_retry=False,
-                         node_title="Manual SAM Segmenter")
+                         node_title="Manual SAM Cell Segmenter")
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.sam_mask_generator = None
         self.sam = None
@@ -282,10 +305,19 @@ class ManualSamCellSegmenter(AbstractNode):
         self.prepared_img = None
         self.curr_img = None
         self.segment_img = None
+        self.class1 = "nucleus"
+        self.class2 = "cytplasm"
+        self.output_pack = {self.class1: None, self.class2: None}
 
     def pop_boxes(self):
         if len(self.input_boxes) > 0:
             self.input_boxes.pop()
+
+    def produce_and_store_mask(self, mask_class):
+        sam_masks = self.apply_sam_pred()
+        mask_img =  sp.generate_mask_img_manual(self.prepared_img, sam_masks)
+        self.output_pack[mask_class] = mask_img
+        
 
     def setup_sam(self):
         sam_checkpoint = "sam_model/sam_vit_h_4b8939.pth"
