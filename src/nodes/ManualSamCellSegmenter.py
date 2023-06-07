@@ -235,6 +235,7 @@ class MSSGui():
         self.master_node.produce_and_store_mask(mask_class)
         self.curr_rep += 1
         if self.curr_rep == self.image_reps:
+            self.master_node.set_valid_gui_exit()
             self.exit_gui()
         else:
             self.reset()
@@ -316,6 +317,10 @@ class ManualSamCellSegmenter(AbstractNode):
         self.nuc_class = "nucleus"
         self.cyto_class = "cytoplasm"
         self.output_pack = {self.nuc_class: None, self.cyto_class: None}
+        self.valid_gui_exit = False
+
+    def set_valid_gui_exit(self):
+        self.valid_gui_exit = True
 
     def pop_boxes(self):
         if len(self.input_boxes) > 0:
@@ -455,6 +460,8 @@ class ManualSamCellSegmenter(AbstractNode):
         self.gui.run()
         stitch_compelete = self.stitch_cells()
         self.remove_nucleus_from_cytoplasm_mask(stitch_compelete)
+        if self.valid_gui_exit:
+            self.set_node_as_successful()
 
     def hello_world(self):
         print("Hello World")

@@ -11,6 +11,9 @@ from src.nodes.SimpleNucleusCounter import SimpleNucleusCounter
 from src.nodes.ManualSamSegmenter import ManualSamSegmenter
 from src.nodes.ManualSamCellSegmenter import ManualSamCellSegmenter
 
+# Update such that nodes return success or failure instead of files to store
+# Have abstractnode communicate with fishnet for file storage instead
+
 
 class SampleNode():
    def __init__(self):

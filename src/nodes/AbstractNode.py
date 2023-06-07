@@ -10,6 +10,8 @@ class AbstractNode:
     Its suggested to replace reinitialize_node
     Its only necessary to replace plot_output if you allow users to retry
     """
+    NODE_SUCCESS_CODE = 1000
+    NODE_FAILURE_CODE = 1001
     def __init__(self,
                  output_name="",
                  requirements=[],
@@ -21,10 +23,17 @@ class AbstractNode:
         self.user_can_retry = user_can_retry
         self.node_title = node_title
         self.requirements_met = True
+        self.node_status_code = AbstractNode.NODE_FAILURE_CODE
         
 
     def get_output_name(self):
         return self.output_name
+
+    def set_node_as_successful(self):
+        self.node_status_code = AbstractNode.NODE_SUCCESS_CODE
+
+    def set_node_as_failed(self):
+        self.node_status_code = AbstractNode.NODE_FAILURE_CODE
 
     def process(self):
         print("This is the default process method that does nothing")
@@ -95,6 +104,7 @@ class AbstractNode:
                 if usr_feedback == usr_int.satisfied_response_id:
                     self.save_output()
                     return node_output
+                    # return self.node_status_code # eventually this is what we return
                 elif usr_feedback == usr_int.quit_response_id:
                     return None
                 if first_pass:
