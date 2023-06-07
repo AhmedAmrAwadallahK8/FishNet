@@ -444,7 +444,6 @@ class ManualSamCellSegmenter(AbstractNode):
         self.output_pack[self.cyto_class] = updated_cyto_id_mask
         # Some debugging code for stitching
         # output_compare = np.hstack((updated_cyto_id_mask, nuc_id_mask))
-        # output_compare = updated_cyto_id_mask + nuc_id_mask
         # plt.figure(figsize=(12,8))
         # plt.axis('off')
         # plt.imshow(output_compare)
@@ -471,3 +470,30 @@ class ManualSamCellSegmenter(AbstractNode):
 
     def plot_output(self):
         pass
+
+    def save_output(self):
+        outline_img = None
+        segment_img = None
+        segment_overlay = None
+
+        nuc_id_mask = self.output_pack[self.nuc_class]
+        cyto_id_mask = self.output_pack[self.cyto_class]
+
+        nuc_segment_img = ip.generate_colored_mask(nuc_id_mask)
+        cyto_segment_img = ip.generate_colored_mask(cyto_id_mask)
+        segment_img = nuc_segment_img + cyto_segment_img
+        segment_overlay = self.prepared_img.copy()*0.5 + segment_img*0.5
+
+        nuc_contour = ip.generate_advanced_contour_img(nuc_id_mask)
+        cyto_contour = ip.generate_advanced_contour_img(cyto_id_mask)
+        outline_img = np.where(nuc_contour > 0, 255, self.prepared_img)
+        outline_img = np.where(cyto_contour > 0, 255, outline_img)
+
+        self.save_img(segment_img, "manual_cell_segment.png")        
+        self.save_img(segment_overlay, "manual_cell_overlay.png")        
+        self.save_img(outline_img, "manual_cell_outline.png")        
+        
+
+
+
+

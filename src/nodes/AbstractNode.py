@@ -1,6 +1,7 @@
 import src.user_interaction as usr_int
 import src.file_handler as file_handler
 import matplotlib.pyplot as plt
+import cv2
 
 class AbstractNode:
     """
@@ -65,11 +66,12 @@ class AbstractNode:
         from src.fishnet import FishNet
         folder_name = FishNet.save_folder
         img_file_path = folder_name + img_name
-        fig, ax = plt.subplots(figsize=(16, 16))
-        plt.axis("off")
-        ax.imshow(img, cmap=cmap)
-        plt.savefig(img_file_path, bbox_inches="tight")
-        plt.close(fig)
+        cv2.imwrite(img_file_path, img)
+        # fig, ax = plt.subplots(figsize=(16, 16))
+        # plt.axis("off")
+        # ax.imshow(img, cmap=cmap)
+        # plt.savefig(img_file_path, bbox_inches="tight")
+        # plt.close(fig)
 
     def run(self):
         self.node_intro_msg()
