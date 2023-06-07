@@ -121,6 +121,9 @@ class FishNet():
    def store_output(self, output, out_name):
       FishNet.pipeline_output[out_name] = output
 
+   def store_output(output, out_name):
+      FishNet.pipeline_output[out_name] = output
+
    def prompt_user_for_file(self):
       self.img_file = input("Input file to be processed: ")
 

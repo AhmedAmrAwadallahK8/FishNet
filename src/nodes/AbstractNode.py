@@ -24,6 +24,7 @@ class AbstractNode:
         self.node_title = node_title
         self.requirements_met = True
         self.node_status_code = AbstractNode.NODE_FAILURE_CODE
+        self.output_pack = None
         
 
     def get_output_name(self):
@@ -71,6 +72,12 @@ class AbstractNode:
     def save_output(self):
         pass
 
+    def give_fishnet_output(self):
+        from src.fishnet import FishNet
+        print(FishNet.pipeline_output)
+        FishNet.store_output(self.output_pack, self.output_name)
+        print(FishNet.pipeline_output)
+
     def save_img(self, img, img_name, cmap="gray"):
         from src.fishnet import FishNet
         folder_name = FishNet.save_folder
@@ -103,6 +110,7 @@ class AbstractNode:
 
                 if usr_feedback == usr_int.satisfied_response_id:
                     self.save_output()
+                    self.give_fishnet_output()
                     return node_output
                     # return self.node_status_code # eventually this is what we return
                 elif usr_feedback == usr_int.quit_response_id:
@@ -112,4 +120,5 @@ class AbstractNode:
         else:
             node_output = self.process()
             self.save_output()
+            self.give_fishnet_output()
             return node_output
