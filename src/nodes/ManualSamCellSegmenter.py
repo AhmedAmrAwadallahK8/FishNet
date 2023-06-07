@@ -389,6 +389,7 @@ class ManualSamCellSegmenter(AbstractNode):
         temp_nuc_id = -1
         stitched_nuc_id_mask = None
         nuc_id_mask = self.output_pack[self.nuc_class]
+        stitched_nuc_id_mask = nuc_id_mask.copy()
         cyto_id_mask = self.output_pack[self.cyto_class]
         nuc_activation = np.where(nuc_id_mask > 0, 1, 0)
 
@@ -399,36 +400,37 @@ class ManualSamCellSegmenter(AbstractNode):
                 continue
             cyto_id_activation = np.where(cyto_id_mask == cyto_id, 1, 0)
             nuc_cyto_id_activated = cyto_id_activation*nuc_id_mask
-            collected_nucs = np.unique(nuc_cyto_id_activated)
-            for nuc_id in collected_nucs:
-                if nuc_id == 0:
-                    continue
-                nuc_id_activation = np.where(nuc_id_mask == nuc_id, 1, 0)
-                cyto_nuc_id_activated = nuc_id_activation*cyto_id_mask
-                master_cyto_id = np.unique(cyto_nuc_id_activated)[1]
-                id_collision_sum = np.sum(
-                    np.where(
-                        nuc_id_mask == master_cyto_id,
-                        1,
-                        0
-                    )
+            child_nuc_id = np.unique(nuc_cyto_id_activated)[1]
+            nuc_id_activation = np.where(nuc_id_mask == child_nuc_id, 1, 0)
+            cyto_nuc_id_activated = nuc_id_activation*cyto_id_mask
+            master_cyto_id = np.unique(cyto_nuc_id_activated)[1]
+            id_collision_sum = np.sum(
+                np.where(
+                    nuc_id_mask == master_cyto_id,
+                    1,
+                    0
                 )
-                # Check if a nucleus already has a cytoplasm id
-                # if it does then handle it
-                if id_collision_sum == 0:
-                    stitched_nuc_id_mask = np.where(nuc_id_mask == nuc_id,
-                        master_cyto_id,
-                        nuc_id_mask)
-                else:
-                    stitched_nuc_id_mask = np.where(nuc_id_mask == master_cyto_id,
-                             temp_nuc_id,
-                             nuc_id_mask)
-                    stitched_nuc_id_mask = np.where(nuc_id_mask == nuc_id,
-                             master_cyto_id,
-                             nuc_id_mask)
-                    stitched_nuc_id_mask = np.where(nuc_id_mask == temp_nuc_id,
-                             nuc_id,
-                             nuc_id_mask)
+            )
+            # Check if a nucleus already has a cytoplasm id
+            # if it does then handle it
+            if id_collision_sum == 0:
+                stitched_nuc_id_mask = np.where(
+                    stitched_nuc_id_mask == child_nuc_id,
+                    master_cyto_id,
+                    stitched_nuc_id_mask)
+            else:
+                stitched_nuc_id_mask = np.where(
+                     stitched_nuc_id_mask == master_cyto_id,
+                     temp_nuc_id,
+                     stitched_nuc_id_mask)
+                stitched_nuc_id_mask = np.where(
+                     stitched_nuc_id_mask == child_nuc_id,
+                     master_cyto_id,
+                     stitched_nuc_id_mask)
+                stitched_nuc_id_mask = np.where(
+                     stitched_nuc_id_mask == temp_nuc_id,
+                     child_nuc_id,
+                     stitched_nuc_id_mask)
         self.output_pack[self.nuc_class] = stitched_nuc_id_mask
         return True
 
@@ -440,11 +442,13 @@ class ManualSamCellSegmenter(AbstractNode):
         anti_nuc_activation = np.where(nuc_id_mask > 0, 0, 1)
         updated_cyto_id_mask = cyto_id_mask * anti_nuc_activation
         self.output_pack[self.cyto_class] = updated_cyto_id_mask
-        output_compare = np.hstack((updated_cyto_id_mask, nuc_id_mask))
-        plt.figure(figsize=(12,8))
-        plt.axis('off')
-        plt.imshow(output_compare)
-        plt.show()
+        # Some debugging code for stitching
+        # output_compare = np.hstack((updated_cyto_id_mask, nuc_id_mask))
+        # output_compare = updated_cyto_id_mask + nuc_id_mask
+        # plt.figure(figsize=(12,8))
+        # plt.axis('off')
+        # plt.imshow(output_compare)
+        # plt.show()
         
         
 
@@ -452,7 +456,6 @@ class ManualSamCellSegmenter(AbstractNode):
         self.gui.run()
         stitch_compelete = self.stitch_cells()
         self.remove_nucleus_from_cytoplasm_mask(stitch_compelete)
-        print("DONE")
 
     def hello_world(self):
         print("Hello World")
