@@ -37,6 +37,15 @@ import src.image_processing as ip
 import src.sam_processing as sp
 from PIL import Image, ImageTk
 
+"""
+ManualSamCellSegmenter output format is a length 2 dictionary.
+Use the key ManualCellMaskPack feth this data
+The two keys within ManualCellMaskPack are below
+Contains Key nucleus which contains nucleus mask id data
+Contains Key cytoplasm which contains cytoplasm mask id data
+
+"""
+
 class RectTracker:
     def __init__(self, canvas, gui, box_tag):
         self.canvas = canvas
@@ -299,7 +308,7 @@ class MSSGui():
 
 class ManualSamCellSegmenter(AbstractNode):
     def __init__(self):
-        super().__init__(output_name="CellMaskPack",
+        super().__init__(output_name="ManualCellMaskPack",
                          requirements=[],
                          user_can_retry=False,
                          node_title="Manual SAM Cell Segmenter")
@@ -458,10 +467,10 @@ class ManualSamCellSegmenter(AbstractNode):
 
     def process(self):
         self.gui.run()
-        stitch_compelete = self.stitch_cells()
-        self.remove_nucleus_from_cytoplasm_mask(stitch_compelete)
         if self.valid_gui_exit:
             self.set_node_as_successful()
+            stitch_compelete = self.stitch_cells()
+            self.remove_nucleus_from_cytoplasm_mask(stitch_compelete)
 
     def hello_world(self):
         print("Hello World")

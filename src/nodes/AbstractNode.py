@@ -69,14 +69,17 @@ class AbstractNode:
         prompt = f"\n---- Commencing {self.node_title} ----\n"
         print(prompt)
 
+    def give_and_save_node_data(self):
+        if self.node_status_code == AbstractNode.NODE_SUCCESS_CODE:
+            self.save_output()
+            self.give_fishnet_output()
+
     def save_output(self):
         pass
 
     def give_fishnet_output(self):
         from src.fishnet import FishNet
-        print(FishNet.pipeline_output)
         FishNet.store_output(self.output_pack, self.output_name)
-        print(FishNet.pipeline_output)
 
     def save_img(self, img, img_name, cmap="gray"):
         from src.fishnet import FishNet
@@ -109,16 +112,14 @@ class AbstractNode:
                 # Close output maybe?
 
                 if usr_feedback == usr_int.satisfied_response_id:
-                    self.save_output()
-                    self.give_fishnet_output()
-                    return node_output
+                    self.give_and_save_node_data()
+                    return self.node_status_code
                     # return self.node_status_code # eventually this is what we return
                 elif usr_feedback == usr_int.quit_response_id:
-                    return None
+                    return self.node_status_code
                 if first_pass:
                     first_pass = False
         else:
             node_output = self.process()
-            self.save_output()
-            self.give_fishnet_output()
-            return node_output
+            self.give_and_save_node_data()
+            return self.node_status_code

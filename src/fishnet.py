@@ -69,12 +69,16 @@ class FishNet():
    
    # Assuming that a node outputs exactly what the next node wants
    def run_pipeline(self):
+      from src.nodes.AbstractNode import AbstractNode
       pipeline_advanced = True
       while(self.pipeline.is_not_finished()):
-         node_output, out_name = self.pipeline.run_node()
-         if node_output is None: # Likely have to change this
-            self.user_exit()
-         self.store_output(node_output, out_name)
+         node_status_code = self.pipeline.run_node()
+         if node_status_code == AbstractNode.NODE_FAILURE_CODE:
+             self.user_exit() 
+         # Reminder this will break behavior of all previous nodes
+         # if node_output is None: # Likely have to change this
+         #    self.user_exit()
+         # self.store_output(node_output, out_name)
          self.pipeline.advance()
 
 

@@ -63,7 +63,6 @@ class TempPipeline:
     def run_node(self):
         node = self.nodes[self.node_idx]
         if node is not self.end_node:
-            image = node.run()
-            image_name = node.get_output_name()
+            node_exit_code = node.run()
             node = self.nodes[self.node_idx] #This may be a useless line
-            return image, image_name
+            return node_exit_code
