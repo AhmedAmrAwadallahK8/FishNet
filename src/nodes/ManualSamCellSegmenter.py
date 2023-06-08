@@ -409,15 +409,18 @@ class ManualSamCellSegmenter(AbstractNode):
 
         cyto_nuc_activated = cyto_id_mask * nuc_activation
         valid_cytos = np.unique(cyto_nuc_activated)
-        for cyto_id in valid_cytos:
-            if cyto_id == 0:
+        for master_cyto_id in valid_cytos:
+            if master_cyto_id == 0:
                 continue
-            cyto_id_activation = np.where(cyto_id_mask == cyto_id, 1, 0)
+            cyto_id_activation = np.where(cyto_id_mask == master_cyto_id, 1, 0)
             nuc_cyto_id_activated = cyto_id_activation*nuc_id_mask
             child_nuc_id = np.unique(nuc_cyto_id_activated)[1]
-            nuc_id_activation = np.where(nuc_id_mask == child_nuc_id, 1, 0)
-            cyto_nuc_id_activated = nuc_id_activation*cyto_id_mask
-            master_cyto_id = np.unique(cyto_nuc_id_activated)[1]
+            # Code below is likely useless
+            # master_cyto_id should just by cyto_id
+            # nuc_id_activation = np.where(nuc_id_mask == child_nuc_id, 1, 0)
+            # cyto_nuc_id_activated = nuc_id_activation*cyto_id_mask
+            # master_cyto_id = np.unique(cyto_nuc_id_activated)[1]
+            # Code above is likely useless
             id_collision_sum = np.sum(
                 np.where(
                     nuc_id_mask == master_cyto_id,
@@ -457,11 +460,11 @@ class ManualSamCellSegmenter(AbstractNode):
         updated_cyto_id_mask = cyto_id_mask * anti_nuc_activation
         self.output_pack[self.cyto_class] = updated_cyto_id_mask
         # Some debugging code for stitching
-        # output_compare = np.hstack((updated_cyto_id_mask, nuc_id_mask))
-        # plt.figure(figsize=(12,8))
-        # plt.axis('off')
-        # plt.imshow(output_compare)
-        # plt.show()
+        output_compare = np.hstack((updated_cyto_id_mask, nuc_id_mask))
+        plt.figure(figsize=(12,8))
+        plt.axis('off')
+        plt.imshow(output_compare)
+        plt.show()
         
         
 
