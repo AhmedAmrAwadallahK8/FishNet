@@ -13,8 +13,10 @@
     # DONE
 # Nucleus > Cytoplasm Logic Flow
     # DONE Base flow
-    # Need to post process results to link nuclei with cytoplasm
-    # Need to adjust cytoplasm to not include nuclei in segmentation
+    # DONE Need to post process results to link nuclei with cytoplasm
+    # DONE Need to adjust cytoplasm to not include nuclei in segmentation
+# Add ID on image
+# Move Continue button to far right
 # Add previous segmentation overlay button
 # Move on to Dot Counting but still plenty to do after
 # Support normal image size
