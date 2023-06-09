@@ -462,11 +462,11 @@ class ManualSamCellSegmenter(AbstractNode):
         updated_cyto_id_mask = cyto_id_mask * anti_nuc_activation
         self.output_pack[self.cyto_class] = updated_cyto_id_mask
         # Some debugging code for stitching
-        output_compare = np.hstack((updated_cyto_id_mask, nuc_id_mask))
-        plt.figure(figsize=(12,8))
-        plt.axis('off')
-        plt.imshow(output_compare)
-        plt.show()
+        # output_compare = np.hstack((updated_cyto_id_mask, nuc_id_mask))
+        # plt.figure(figsize=(12,8))
+        # plt.axis('off')
+        # plt.imshow(output_compare)
+        # plt.show()
         
         
 
@@ -510,11 +510,53 @@ class ManualSamCellSegmenter(AbstractNode):
         outline_img = np.where(nuc_contour > 0, 255, self.prepared_img)
         outline_img = np.where(cyto_contour > 0, 255, outline_img)
 
-        self.save_img(segment_img, "manual_cell_segment.png")        
-        self.save_img(segment_overlay, "manual_cell_overlay.png")        
-        self.save_img(outline_img, "manual_cell_outline.png")        
+        nuc_activation = np.where(nuc_id_mask > 0, 1, 0)
+        nuc_activation = nuc_activation[:, :, np.newaxis]
+        cyto_activation = np.where(cyto_id_mask > 0, 1, 0)
+        cyto_activation = cyto_activation[:, :, np.newaxis]
+        cell_activation = nuc_activation + cyto_activation
+
+        # For presentation largely
+        segment_overlay_activated = segment_overlay*cell_activation
+        outline_activated = outline_img*cell_activation
+        # base_img_cell_activated = self.prepared_img*cell_activation
+        # base_img_nuc_activated = self.prepared_img*nuc_activation
+        # base_img_cyto_activated = self.prepared_img*cyto_activation
+        # self.save_img(base_img_cell_activated, "base_img_cell_activated.png")
+        # self.save_img(base_img_nuc_activated, "base_img_nuc_activated.png")
+        # self.save_img(base_img_cyto_activated, "base_img_cyto_activated.png")
+
+        # SPECIFIC PRESENTATION CODE, NOT FOR PRODUCTION
+        # cyto_id_mask_box = cyto_id_mask[:, :, np.newaxis]
+        # offset = 20
+        # cell_box = nuc_activation+cyto_activation
+        # cell_box = cell_box.astype(np.uint8)
+        # contours, hierarchy = cv2.findContours(cell_box,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)[-2:]
+        # x,y,w,h = cv2.boundingRect(contours[0])
+        # bbox = [x, y, x+w, y+h]
+        # xmin = x - offset
+        # ymin = y - offset
+        # xmax = x+w + offset
+        # ymax = y+h + offset
+        # print(bbox)
+        # base_img_crop = self.prepared_img[ymin:ymax, xmin:xmax, :]
+        # nuc_only_segmented = self.prepared_img*np.where(nuc_activation == 1, 0, 1)
+        # nuc_only_segmented = nuc_only_segmented + nuc_segment_img
+        # nuc_only_segmented = nuc_only_segmented[ymin:ymax, xmin:xmax, :]
+        # both_segmented = self.prepared_img*np.where(nuc_activation == 1, 0, 1)
+        # both_segmented = both_segmented*np.where(cyto_activation == 1, 0, 1)
+        # both_segmented = both_segmented + nuc_segment_img + cyto_segment_img
+        # both_segmented = both_segmented[ymin:ymax, xmin:xmax, :]
+        # self.save_img(base_img_crop, "base_cell_crop.png")
+        # self.save_img(nuc_only_segmented, "base_nuc_crop.png")
+        # self.save_img(both_segmented, "base_nuc_cyto_crop.png")
+        
         
 
-
-
-
+        self.save_img(segment_img, "manual_cell_segment.png")
+        self.save_img(segment_overlay, "manual_cell_overlay.png")
+        self.save_img(outline_img, "manual_cell_outline.png")
+        self.save_img(segment_overlay_activated, "manual_cell_overlay_activated.png")
+        self.save_img(outline_activated, "manual_cell_outline_activated.png")
+        self.save_img(nuc_segment_img, "manual_nuc_segment.png")
+        self.save_img(cyto_segment_img, "manual_cyto_segment.png")
