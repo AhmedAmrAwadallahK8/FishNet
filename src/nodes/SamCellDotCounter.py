@@ -1,4 +1,5 @@
 # Counts dots present in nucleus and cell
+# Save an image showing what the model counted so researcher can finish
 
 import numpy as np
 import torch
@@ -71,7 +72,28 @@ class SamCellDotCounter(AbstractNode):
             self.nuc_counts[nuc_id] = self.get_dot_count(img_crop)
 
     def get_segmentation_bbox(self, single_id_mask):
-        pass
+        gray = single_id_mask[:, :, np.newaxis].astype(np.uint8)
+        contours, hierarchy = cv2.findContours(gray,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)[-2:]
+        idx =0 
+        rois = []
+        largest_area = 0
+        best_bbox = []
+        first = True
+        for cnt in contours:
+            idx += 1
+            area = cv.contourArea(cnt)
+            rect_pack = cv2.boundingRect(cnt) #x, y, w, h
+            x, y, w, h = rect_pack
+            bbox = [x, y, x+w, y+h]
+            if first:
+                first = False
+                largest_area = area
+                best_bbox = bbox
+            else:
+                if area > largest_area:
+                    largest_area = area
+                    best_bbox = bbox
+        return best_bbox
 
     def get_dot_count(self, img_subset):
         pass
