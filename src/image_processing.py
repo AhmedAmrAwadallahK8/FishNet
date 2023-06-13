@@ -32,6 +32,12 @@ def get_all_channel_img():
     raw_img += FishNet.raw_imgs[0][3]
     return raw_img
 
+def get_all_mrna_img():
+    # This is not generalizable
+    from src.fishnet import FishNet
+    raw_img = FishNet.raw_imgs[0][3]
+    return raw_img
+
 def rescale_img(img):
     img_scaled = img.copy()
     if np.amax(img) > 255:

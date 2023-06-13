@@ -1,5 +1,6 @@
 # Counts dots present in nucleus and cell
 # Save an image showing what the model counted so researcher can finish
+# More sophisticated quilting
 
 import numpy as np
 import torch
@@ -32,6 +33,7 @@ class SamCellDotCounter(AbstractNode):
         self.nuc_counts = {}
         self.cyto_counts = {}
         self.seg_imgs = {}
+        self.raw_crop_imgs = {}
         save_folder = FishNet.save_folder + self.save_folder
         if not os.path.exists(save_folder):
             os.makedirs(save_folder)
@@ -53,7 +55,7 @@ class SamCellDotCounter(AbstractNode):
 
     def initialize_node(self):
         # Image Prep?
-        raw_img = ip.get_all_channel_img()
+        raw_img = ip.get_all_mrna_img()
         self.base_img = ip.preprocess_img2(raw_img)
         self.get_id_mask()
         self.setup_sam()
@@ -91,6 +93,9 @@ class SamCellDotCounter(AbstractNode):
         for save_name in self.seg_imgs:
             img_path = self.save_folder + save_name
             self.save_img(self.seg_imgs[save_name], img_path)
+        for save_name in self.raw_crop_imgs:
+            img_path = self.save_folder + save_name
+            self.save_img(self.raw_crop_imgs[save_name], img_path)
 
     def process_cytos(self):
         cyto_ids = np.unique(self.cyto_id_mask)
@@ -116,12 +121,31 @@ class SamCellDotCounter(AbstractNode):
             ymin = int(id_bbox[1])
             ymax = int(id_bbox[3])
             img_id_activated = resized_id_activation * self.base_img
-            img_crop = img_id_activated[ymin:ymax, xmin:xmax, :]
-            img_crop = ip.resize_img(img_crop, 512, 512)
-            dot_count, seg = self.get_dot_count_and_seg(img_crop)
+            img_crop = img_id_activated[ymin:ymax, xmin:xmax, :].copy()
+            img_crop = ip.resize_img(img_crop, 1024, 1024)
+            dot_count, seg = self.get_dot_count_and_seg(img_crop.copy())
             self.cyto_counts[cyto_id] = dot_count
-            seg_overlay = img_crop*0.5 + seg*0.5
-            self.store_segmentation("cyto", cyto_id, seg_overlay)
+            self.store_segmentation("cyto", cyto_id, img_crop, seg)
+            self.store_raw_crop(id_bbox, cyto_id)
+
+    def store_raw_crop(self, id_bbox, cell_id):
+        base_shape = self.base_img.shape
+        pad = 20
+        xmin = int(id_bbox[0] - pad)
+        xmax = int(id_bbox[2] + pad)
+        ymin = int(id_bbox[1] - pad)
+        ymax = int(id_bbox[3] + pad)
+        if xmin < 0:
+            xmin = 0
+        if ymin < 0:
+            ymin = 0
+        if xmax >= base_shape[1]:
+            xmax = base_shape[1]-1
+        if ymax >= base_shape[0]:
+            ymax = base_shape[0] - 1
+        save_name = f"c{cell_id}_raw.png"
+        self.raw_crop_imgs[save_name] = self.base_img[ymin:ymax, xmin:xmax, :].copy()
+        
 
     def process_nucs(self):
         nuc_ids = np.unique(self.nuc_id_mask)
@@ -147,17 +171,16 @@ class SamCellDotCounter(AbstractNode):
             ymin = int(id_bbox[1])
             ymax = int(id_bbox[3])
             img_id_activated = resized_id_activation * self.base_img
-            img_crop = img_id_activated[ymin:ymax, xmin:xmax, :]
-            img_crop = ip.resize_img(img_crop, 512, 512)
-            dot_count, seg = self.get_dot_count_and_seg(img_crop)
+            img_crop = img_id_activated[ymin:ymax, xmin:xmax, :].copy()
+            img_crop = ip.resize_img(img_crop, 1024, 1024)
+            dot_count, seg = self.get_dot_count_and_seg(img_crop.copy())
             self.nuc_counts[nuc_id] = dot_count
-            seg_overlay = img_crop*0.5 + seg*0.5
-            seg_overlay = img_crop
-            self.store_segmentation("nuc", nuc_id, seg_overlay)
+            self.store_segmentation("nuc", nuc_id, img_crop, seg)
 
-    def store_segmentation(self, cell_part, cell_id, segmentation):
+    def store_segmentation(self, cell_part, cell_id, orig_img, segmentation):
+        img_overlay = orig_img*0.5 + segmentation*0.5
         save_name = f"cell{cell_id}_{cell_part}.png"
-        self.seg_imgs[save_name] = segmentation
+        self.seg_imgs[save_name] = img_overlay
         
 
     def get_segmentation_bbox(self, single_id_mask):
