@@ -153,18 +153,22 @@ class RectTracker:
         return smallest_item
 
 class MSSGui():
-    def __init__(self, owner):
+    def __init__(self, owner, canv_height, canv_width):
+        self.canv_width = canv_width
+        self.canv_height = canv_height
+        self.app_width = int(canv_width*1.2)
+        self.app_height = int(canv_width*1.2)
         self.image_reps = 2
         self.curr_rep = 0
         self.master_node = owner
         self.root = tk.Tk()
-        self.root.geometry("600x600")
+        self.root.geometry(f"{self.app_width}x{self.app_height}")
         self.root.title("Manual Sam Segmenter")
         self.box_tag = "box"
 
-        img_arr = np.zeros((512,512,3)).astype(np.uint8)
+        img_arr = np.zeros((self.canv_height, self.canv_width,3)).astype(np.uint8)
         self.curr_img =  ImageTk.PhotoImage(image=Image.fromarray(img_arr))
-        self.canvas = tk.Canvas(self.root, width=512, height=512)
+        self.canvas = tk.Canvas(self.root, width=self.canv_width, height=self.canv_height)
         self.canvas.pack()
         self.rect = RectTracker(self.canvas, self, self.box_tag)
         def on_drag(start, end):
@@ -315,6 +319,8 @@ class ManualSamCellSegmenter(AbstractNode):
                          user_can_retry=False,
                          node_title="Manual SAM Cell Segmenter")
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        # self.image_size = 1024
+        self.targ_pixel_area = 768*768
         self.sam_mask_generator = None
         self.sam = None
         self.sam_predictor = None
@@ -322,6 +328,7 @@ class ManualSamCellSegmenter(AbstractNode):
         self.input_points = [[0,0]]
         self.input_labels = [0]
         self.gui = None
+        self.default_size_img = None
         self.prepared_img = None
         self.curr_img = None
         self.segment_img = None
@@ -482,10 +489,15 @@ class ManualSamCellSegmenter(AbstractNode):
 
     def initialize_node(self):
         raw_img = ip.get_all_channel_img()
-        self.prepared_img = ip.preprocess_img(raw_img)
+        self.prepared_img = ip.preprocess_img2(raw_img)
+        self.default_size_img = self.prepared_img.copy()
+        self.prepared_img = ip.resize_img_to_pixel_size(
+            self.prepared_img,
+            self.targ_pixel_area)
         self.curr_img = self.prepared_img.copy()
         self.segment_img = np.zeros(self.prepared_img.shape)
-        self.gui = MSSGui(self)
+        canv_height, canv_width, _ =self.prepared_img.shape
+        self.gui = MSSGui(self, canv_height, canv_width)
         self.gui.update_img(self.prepared_img)
         self.setup_sam()
 
@@ -493,6 +505,11 @@ class ManualSamCellSegmenter(AbstractNode):
         pass
 
     def save_output(self):
+        base_shape = self.default_size_img.shape
+        base_height = base_shape[0]
+        base_width = base_shape[1]
+        targ_pixel_area = base_shape[0]*base_shape[1]
+        base_img = self.default_size_img.copy()
         outline_img = None
         segment_img = None
         segment_overlay = None
@@ -502,18 +519,20 @@ class ManualSamCellSegmenter(AbstractNode):
 
         nuc_segment_img = ip.generate_colored_mask(nuc_id_mask)
         cyto_segment_img = ip.generate_colored_mask(cyto_id_mask)
+        nuc_segment_img = ip.resize_img(nuc_segment_img, base_height, base_width, "linear")
+        cyto_segment_img = ip.resize_img(cyto_segment_img, base_height, base_width, "linear")
         segment_img = nuc_segment_img + cyto_segment_img
-        segment_overlay = self.prepared_img.copy()*0.5 + segment_img*0.5
+        segment_overlay = base_img.copy()*0.5 + segment_img*0.5
 
         nuc_contour = ip.generate_advanced_contour_img(nuc_id_mask)
         cyto_contour = ip.generate_advanced_contour_img(cyto_id_mask)
-        outline_img = np.where(nuc_contour > 0, 255, self.prepared_img)
+        nuc_contour = ip.resize_img(nuc_contour, base_height, base_width, "linear")
+        cyto_contour = ip.resize_img(cyto_contour, base_height, base_width, "linear")
+        outline_img = np.where(nuc_contour > 0, 255, base_img)
         outline_img = np.where(cyto_contour > 0, 255, outline_img)
 
-        nuc_activation = np.where(nuc_id_mask > 0, 1, 0)
-        nuc_activation = nuc_activation[:, :, np.newaxis]
-        cyto_activation = np.where(cyto_id_mask > 0, 1, 0)
-        cyto_activation = cyto_activation[:, :, np.newaxis]
+        nuc_activation = np.where(nuc_segment_img > 0, 1, 0)
+        cyto_activation = np.where(cyto_segment_img > 0, 1, 0)
         cell_activation = nuc_activation + cyto_activation
 
         # For presentation largely

@@ -53,12 +53,77 @@ def scale_and_clip_img(img):
     img_clip_scale_denoise = clahe.apply(img_clip_scale_denoise)
     return img_clip_scale_denoise
 
+def preprocess_img2(img):
+    img = scale_and_clip_img(img)
+    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+    return img
+
 def preprocess_img(img):
     img = scale_and_clip_img(img)
     img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
     img = cv2.resize(img, dsize=(512, 512), interpolation=cv2.INTER_CUBIC)
     return img
 
+def resize_img_to_pixel_size(img, targ_pixel_area):
+    img_shape = img.shape
+    pixel_area = img_shape[0]*img_shape[1]
+    
+    orig_h = img_shape[0]
+    orig_w = img_shape[1]
+    hw_ratio = orig_h/orig_w
+    new_w = 0
+    new_h = 0
+    
+    if targ_pixel_area < pixel_area:
+        x = orig_w - np.sqrt(orig_w*targ_pixel_area/orig_h)
+        new_w = orig_w - x
+        new_h = orig_h - x*hw_ratio
+    elif targ_pixel_area > pixel_area: # Not 100% proven yet
+        x = orig_w - np.sqrt(orig_w*targ_pixel_area/orig_h)
+        new_w = orig_w + x
+        new_h = orig_h + x*hw_ratio
+    else:
+        new_h = orig_h
+        new_w = orig_w
+        
+    
+    orig_h = int(orig_h)
+    orig_w = int(orig_w)
+    scaled_h = int(new_h)
+    scaled_w = int(new_w)
+    
+    final_img = resize_img(img, scaled_h, scaled_w)
+    
+    return final_img
+
+def rescale_boxes(boxes, orig_shape, targ_shape):
+    orig_h = orig_shape[0]
+    orig_w = orig_shape[1]
+    scaled_h = targ_shape[0]
+    scaled_w = targ_shape[1]
+    boxes_np = np.asarray(boxes)
+    orig_scale_coefs = np.asarray([
+        orig_w, orig_h,
+        orig_w, orig_h
+    ])
+    new_scale_coefs = np.asarray([
+        scaled_w, scaled_h,
+        scaled_w, scaled_h
+    ])
+    rescaled_boxes = boxes_np/orig_scale_coefs*new_scale_coefs
+    return rescaled_boxes.tolist()
+    
+
+def resize_img(img, h, w, inter_type="cubic"):
+    img = img.astype(np.uint8)
+    if inter_type == "cubic":
+        img = cv2.resize(img, dsize=(w, h), interpolation=cv2.INTER_CUBIC)
+    elif inter_type == "linear":
+        img = cv2.resize(img, dsize=(w, h), interpolation=cv2.INTER_LINEAR)
+    else:
+        print("INVALID INTERPOLATION TYPE, USING DEFALT INTERPOLATION TYPE")
+        img = cv2.resize(img, dsize=(w, h), interpolation=cv2.INTER_CUBIC)
+    return img
 
 def generate_contour_img(mask_img):
     contour_col = (255, 255, 255)
