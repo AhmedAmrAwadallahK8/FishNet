@@ -43,8 +43,11 @@ class TempPipeline:
         self.nodes.append(self.end_node)
 
     def advance(self):
+        # import gc
         node = self.nodes[self.node_idx]
         if node is not self.end_node:
+            # del self.nodes[self.node_idx]
+            # gc.collect()
             self.node_idx += 1
             return True
         else:

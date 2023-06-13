@@ -82,15 +82,8 @@ class SamCellDotCounter(AbstractNode):
         csv_file.write("cell_id,cyto_counts,nuc_counts\n")
         for nuc_id in self.nuc_counts.keys():
             if nuc_id in self.cyto_counts:
-                obs = str(nuc_id) + "," + self.cyto_counts[nuc_id] + "," + self.nuc_counts[nuc_id]
-
-
-
-        for id in self.particle_counts.keys():
-           counts = self.particle_counts[id]
-           observation = str(id) + "," + str(counts) + "\n"
-           csv_file.write(observation) 
-     
+                obs = str(nuc_id) + "," + str(self.cyto_counts[nuc_id]) + "," + str(self.nuc_counts[nuc_id])
+                csv_file.write(obs)
         csv_file.write("\n")
         csv_file.close()
 
@@ -125,9 +118,10 @@ class SamCellDotCounter(AbstractNode):
             img_id_activated = resized_id_activation * self.base_img
             img_crop = img_id_activated[ymin:ymax, xmin:xmax, :]
             img_crop = ip.resize_img(img_crop, 512, 512)
-            dot_count, cyto_seg = self.get_dot_count_and_seg(img_crop)
+            dot_count, seg = self.get_dot_count_and_seg(img_crop)
             self.cyto_counts[cyto_id] = dot_count
-            self.store_segmentation("cyto", cyto_id, cyto_seg)
+            seg_overlay = img_crop*0.5 + seg*0.5
+            self.store_segmentation("cyto", cyto_id, seg_overlay)
 
     def process_nucs(self):
         nuc_ids = np.unique(self.nuc_id_mask)
@@ -155,11 +149,13 @@ class SamCellDotCounter(AbstractNode):
             img_id_activated = resized_id_activation * self.base_img
             img_crop = img_id_activated[ymin:ymax, xmin:xmax, :]
             img_crop = ip.resize_img(img_crop, 512, 512)
-            dot_count, nuc_seg = self.get_dot_count_and_seg(img_crop)
+            dot_count, seg = self.get_dot_count_and_seg(img_crop)
             self.nuc_counts[nuc_id] = dot_count
-            self.store_segmentation("nuc", nuc_id, nuc_seg)
+            seg_overlay = img_crop*0.5 + seg*0.5
+            seg_overlay = img_crop
+            self.store_segmentation("nuc", nuc_id, seg_overlay)
 
-    def store_segmentation(cell_part, cell_id, segmentation):
+    def store_segmentation(self, cell_part, cell_id, segmentation):
         save_name = f"cell{cell_id}_{cell_part}.png"
         self.seg_imgs[save_name] = segmentation
         

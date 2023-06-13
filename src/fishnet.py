@@ -39,6 +39,7 @@ class FishNet():
       # self.nodes = [ManualSamSegmenter()]
       self.nodes = [ManualSamCellSegmenter(), SamCellDotCounter()]
       self.pipeline = TempPipeline(self.nodes)
+      del self.nodes
       self.valid_responses = ["yes", "y", "no", "n"]
       self.negative_responses = ["no", "n"]
       self.positive_responses = ["yes", "y"]

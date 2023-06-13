@@ -483,6 +483,11 @@ class ManualSamCellSegmenter(AbstractNode):
             self.set_node_as_successful()
             stitch_compelete = self.stitch_cells()
             self.remove_nucleus_from_cytoplasm_mask(stitch_compelete)
+        del self.sam
+        del self.sam_mask_generator
+        del self.sam_predictor
+        torch.cuda.empty_cache()
+        
 
     def hello_world(self):
         print("Hello World")
