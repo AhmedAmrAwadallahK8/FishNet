@@ -10,6 +10,7 @@ from src.nodes.SamNucleusSegmenter import SamNucleusSegmenter
 from src.nodes.SimpleNucleusCounter import SimpleNucleusCounter
 from src.nodes.ManualSamSegmenter import ManualSamSegmenter
 from src.nodes.ManualSamCellSegmenter import ManualSamCellSegmenter
+from src.nodes.SamCellDotCounter import SamCellDotCounter
 
 # Update such that nodes return success or failure instead of files to store
 # Have abstractnode communicate with fishnet for file storage instead
@@ -36,7 +37,7 @@ class FishNet():
       self.img_file = ""
       # self.all_imgs = []
       # self.nodes = [ManualSamSegmenter()]
-      self.nodes = [ManualSamCellSegmenter()]
+      self.nodes = [ManualSamCellSegmenter(), SamCellDotCounter()]
       self.pipeline = TempPipeline(self.nodes)
       self.valid_responses = ["yes", "y", "no", "n"]
       self.negative_responses = ["no", "n"]

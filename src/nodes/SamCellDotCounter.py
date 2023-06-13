@@ -5,71 +5,164 @@ import numpy as np
 import torch
 import torchvision
 import cv2
+import cv2 as cv
 from src.nodes.AbstractNode import AbstractNode
-from segment_anything import sam_model_registry, SamPredictor
+from segment_anything import sam_model_registry, SamAutomaticMaskGenerator, SamPredictor
 import src.image_processing as ip
 import src.sam_processing as sp
+import os
 
 class SamCellDotCounter(AbstractNode):
     def __init__(self):
-        from src.fishnet import Fishnet
+        from src.fishnet import FishNet
         super().__init__(output_name="SamDotCountPack",
                          requirements=["ManualCellMaskPack"],
                          user_can_retry=False,
                          node_title="Auto SAM Cell Dot Counter")
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.save_folder = "particle_segmentations/"
+        self.block_size = 256
         self.base_img = None
         self.sam_mask_generator = None
         self.sam = None
         self.sam_predictor = None
-        self.cyto_id_mask = Fishnet.pipeline_output["cytoplasm"]
-        self.nuc_id_mask = Fishnet.pipeline_output["nucleus"]
+        self.cyto_id_mask = None
+        self.nuc_id_mask = None
+        self.csv_name =  "dot_counts.csv"
         self.nuc_counts = {}
         self.cyto_counts = {}
+        self.seg_imgs = {}
+        save_folder = FishNet.save_folder + self.save_folder
+        if not os.path.exists(save_folder):
+            os.makedirs(save_folder)
 
     def setup_sam(self):
         sam_checkpoint = "sam_model/sam_vit_h_4b8939.pth"
         model_type = "vit_h"
         self.sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
         self.sam.to(device=self.device)
-        self.sam_predictor = SamPredictor(self.sam)
-        # self.sam_predictor.set_image(img)
+        default_sam_settings = {
+                    "points_per_side": 32, #32
+                    "pred_iou_thresh": 0.95, #0.5
+                    "stability_score_thresh": 0.95, #0.85
+                    "crop_n_layers": 1, #1
+                    "crop_n_points_downscale_factor": 2,
+                    "min_mask_region_area": 1 }
+        self.mask_generator = SamAutomaticMaskGenerator(model=self.sam, **default_sam_settings)
 
 
     def initialize_node(self):
         # Image Prep?
+        raw_img = ip.get_all_channel_img()
+        self.base_img = ip.preprocess_img2(raw_img)
+        self.get_id_mask()
         self.setup_sam()
 
+    def get_id_mask(self):
+        from src.fishnet import FishNet
+        mask_pack = FishNet.pipeline_output["ManualCellMaskPack"]
+        self.cyto_id_mask = mask_pack["cytoplasm"]
+        self.nuc_id_mask = mask_pack["nucleus"]
+        
+
     def save_output(self):
-        pass
+        self.save_dot_count_csv()
+        self.save_segs()
 
     def process(self):
-        process_cytos()
-        process_nucs()
+        self.process_cytos()
+        self.process_nucs()
         self.set_node_as_successful()
-        pass
+
+    def save_dot_count_csv(self):
+        from src.fishnet import FishNet
+        # csv of particle counts
+        particle_csv = FishNet.save_folder + self.csv_name
+        csv_file = open(particle_csv, "w")
+        csv_file.write("cell_id,cyto_counts,nuc_counts\n")
+        for nuc_id in self.nuc_counts.keys():
+            if nuc_id in self.cyto_counts:
+                obs = str(nuc_id) + "," + self.cyto_counts[nuc_id] + "," + self.nuc_counts[nuc_id]
+
+
+
+        for id in self.particle_counts.keys():
+           counts = self.particle_counts[id]
+           observation = str(id) + "," + str(counts) + "\n"
+           csv_file.write(observation) 
+     
+        csv_file.write("\n")
+        csv_file.close()
+
+    def save_segs(self):
+        for save_name in self.seg_imgs:
+            img_path = self.save_folder + save_name
+            self.save_img(self.seg_imgs[save_name], img_path)
 
     def process_cytos(self):
         cyto_ids = np.unique(self.cyto_id_mask)
         for cyto_id in cyto_ids:
             if cyto_id == 0:
                 continue
+            targ_shape = self.base_img.shape
             id_activation = np.where(self.cyto_id_mask == cyto_id, 1, 0)
+            resized_id_activation = id_activation[:, :, np.newaxis]
+            resized_id_activation = ip.resize_img(
+                resized_id_activation,
+                targ_shape[0],
+                targ_shape[1],
+                inter_type="linear")
+            resized_id_activation = resized_id_activation[:, :, np.newaxis]
             id_bbox = self.get_segmentation_bbox(id_activation)
-            img_id_activated = id_activation * self.base_img
-            img_crop = img_id_activated[id_bbox]
-            self.cyto_counts[cyto_id] = self.get_dot_count(img_crop)
+            id_bbox = ip.rescale_boxes(
+                [id_bbox],
+                id_activation.shape,
+                self.base_img.shape)[0]
+            xmin = int(id_bbox[0])
+            xmax = int(id_bbox[2])
+            ymin = int(id_bbox[1])
+            ymax = int(id_bbox[3])
+            img_id_activated = resized_id_activation * self.base_img
+            img_crop = img_id_activated[ymin:ymax, xmin:xmax, :]
+            img_crop = ip.resize_img(img_crop, 512, 512)
+            dot_count, cyto_seg = self.get_dot_count_and_seg(img_crop)
+            self.cyto_counts[cyto_id] = dot_count
+            self.store_segmentation("cyto", cyto_id, cyto_seg)
 
     def process_nucs(self):
         nuc_ids = np.unique(self.nuc_id_mask)
         for nuc_id in nuc_ids:
             if nuc_id == 0:
                 continue
+            targ_shape = self.base_img.shape
             id_activation = np.where(self.nuc_id_mask == nuc_id, 1, 0)
+            resized_id_activation = id_activation[:, :, np.newaxis]
+            resized_id_activation = ip.resize_img(
+                resized_id_activation,
+                targ_shape[0],
+                targ_shape[1],
+                inter_type="linear")
+            resized_id_activation = resized_id_activation[:, :, np.newaxis]
             id_bbox = self.get_segmentation_bbox(id_activation)
-            img_id_activated = id_activation * self.base_img
-            img_crop = img_id_activated[id_bbox]
-            self.nuc_counts[nuc_id] = self.get_dot_count(img_crop)
+            id_bbox = ip.rescale_boxes(
+                [id_bbox],
+                id_activation.shape,
+                self.base_img.shape)[0]
+            xmin = int(id_bbox[0])
+            xmax = int(id_bbox[2])
+            ymin = int(id_bbox[1])
+            ymax = int(id_bbox[3])
+            img_id_activated = resized_id_activation * self.base_img
+            img_crop = img_id_activated[ymin:ymax, xmin:xmax, :]
+            img_crop = ip.resize_img(img_crop, 512, 512)
+            dot_count, nuc_seg = self.get_dot_count_and_seg(img_crop)
+            self.nuc_counts[nuc_id] = dot_count
+            self.store_segmentation("nuc", nuc_id, nuc_seg)
+
+    def store_segmentation(cell_part, cell_id, segmentation):
+        save_name = f"cell{cell_id}_{cell_part}.png"
+        self.seg_imgs[save_name] = segmentation
+        
 
     def get_segmentation_bbox(self, single_id_mask):
         gray = single_id_mask[:, :, np.newaxis].astype(np.uint8)
@@ -95,7 +188,66 @@ class SamCellDotCounter(AbstractNode):
                     best_bbox = bbox
         return best_bbox
 
-    def get_dot_count(self, img_subset):
-        pass
+    def get_dot_count_and_seg(self, img_subset):
+        img_seq = self.get_image_seq(img_subset, self.block_size)
+        seg_seq, dot_count = self.get_dot_count_and_seg_seq(img_seq)
+        restored_seg = self.coalesce_img_seq(img_subset, seg_seq, self.block_size)
+        return dot_count, restored_seg
 
+    def coalesce_img_seq(self, img, img_seq, block_size):
+        x_imgs = int(img.shape[0]/block_size)
+        y_imgs = int(img.shape[1]/block_size)
+        i = 0
+        for x_img in range(x_imgs):
+            for y_img in range(y_imgs):
+                start_x = x_img*block_size
+                start_y = y_img*block_size
+                end_x = x_img*block_size + block_size
+                end_y = y_img*block_size + block_size
+                img[start_x:end_x, start_y:end_y, :] = img_seq[i].astype(int)
+                i += 1
+        return img
 
+    def get_image_seq(self, img, block_size):
+        img_seq = []
+        x_imgs = int(img.shape[0]/block_size)
+        y_imgs = int(img.shape[1]/block_size)
+        for x_img in range(x_imgs):
+            for y_img in range(y_imgs):
+                start_x = x_img*block_size
+                start_y = y_img*block_size
+                end_x = x_img*block_size + block_size
+                end_y = y_img*block_size + block_size
+                img_seq.append(img[start_x:end_x, start_y:end_y])
+        return img_seq
+
+    def get_dot_count_and_seg_seq(self, img_seq):
+        seg_seq = []
+        total_dot_count = 0
+
+        prog = 0
+        for img in img_seq:
+            prog += 1
+            print(prog)
+            masks = self.mask_generator.generate(img)
+            mask_img, dot_counts = self.process_sam_mask(img, masks)
+            total_dot_count += dot_counts
+            seg = ip.generate_colored_mask(mask_img)
+            seg_seq.append(seg)
+        return seg_seq, total_dot_count
+
+    def process_sam_mask(self, img, sam_mask):
+        mask_shape = (img.shape[0], img.shape[1])
+        mask_img = np.zeros(mask_shape)
+        total_pix = np.sum(np.ones(mask_shape))
+        instance_id = 0
+        for m in sam_mask:
+                mask_sum = np.sum(m["segmentation"])
+                if mask_sum/total_pix > 0.1:
+                    continue
+                instance_id += 1
+                mask_instance = np.zeros(mask_shape)
+                segment_instance = np.where(m["segmentation"] == True, instance_id, 0)
+                mask_instance += segment_instance
+                mask_img += mask_instance
+        return mask_img, instance_id
