@@ -24,7 +24,7 @@ class SamCellDotCounter(AbstractNode):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.save_folder = "particle_segmentations/"
         self.max_pix_area = 1024*1024
-        self.quilt_factor = 4
+        self.quilt_factor = 2
         self.block_size = 512
         self.base_img = None
         self.sam_mask_generator = None
@@ -139,8 +139,14 @@ class SamCellDotCounter(AbstractNode):
             ymax = int(id_bbox[3])
             img_id_activated = resized_id_activation * self.base_img
             img_crop = img_id_activated[ymin:ymax, xmin:xmax, :].copy()
+            img_crop_h = img_crop.shape[0]
+            img_crop_w = img_crop.shape[1]
+            scale_factor = np.sqrt(self.max_pix_area/(img_crop_h*img_crop_w))
             # img_crop = ip.resize_img_to_pixel_size(img_crop, self.max_pix_area)
-            img_crop = ip.resize_img(img_crop, 1024, 1024)
+            img_crop = ip.resize_img(
+                img_crop,
+                int(img_crop_h*scale_factor),
+                int(img_crop_w*scale_factor))
             # Might be problematic to do this
             img_crop = np.where(img_crop == 0, random.randint(0, 254), img_crop)
 
@@ -242,7 +248,7 @@ class SamCellDotCounter(AbstractNode):
             self.store_segmentation("nuc", nuc_id, img_crop, seg)
 
     def store_segmentation(self, cell_part, cell_id, orig_img, segmentation):
-        img_overlay = orig_img*0.7 + segmentation*0.3
+        img_overlay = orig_img*0.9 + segmentation*0.1
         save_name = f"cell{cell_id}_{cell_part}.png"
         self.seg_imgs[save_name] = img_overlay
         
@@ -272,9 +278,9 @@ class SamCellDotCounter(AbstractNode):
         return best_bbox
 
     def get_dot_count_and_seg_quilt(self, img_subset):
-        img_seq = self.get_image_seq(img_subset, self.block_size)
+        img_seq = self.get_image_seq(img_subset)
         seg_seq, dot_count = self.get_dot_count_and_seg_seq(img_seq)
-        restored_seg = self.coalesce_img_seq(img_subset, seg_seq, self.block_size)
+        restored_seg = self.coalesce_img_seq(img_subset, seg_seq)
         return dot_count, restored_seg
 
     def get_dot_count_and_seg_pure(self, img_subset):
@@ -283,32 +289,56 @@ class SamCellDotCounter(AbstractNode):
         seg = ip.generate_single_colored_mask(mask_img)
         return dot_count, seg
 
-    def coalesce_img_seq(self, img, img_seq, block_size):
-        x_imgs = int(img.shape[0]/block_size)
-        y_imgs = int(img.shape[1]/block_size)
+    def coalesce_img_seq(self, img, img_seq):
+        y_block_size = int(img.shape[1]/self.quilt_factor)
+        x_block_size = int(img.shape[0]/self.quilt_factor)
         i = 0
-        for x_img in range(x_imgs):
-            for y_img in range(y_imgs):
-                start_x = x_img*block_size
-                start_y = y_img*block_size
-                end_x = x_img*block_size + block_size
-                end_y = y_img*block_size + block_size
+        for x_img in range(self.quilt_factor):
+            for y_img in range(self.quilt_factor):
+                start_x = x_img*x_block_size
+                start_y = y_img*y_block_size
+                end_x = x_img*x_block_size + x_block_size
+                end_y = y_img*y_block_size + y_block_size
                 img[start_x:end_x, start_y:end_y, :] = img_seq[i].astype(int)
                 i += 1
         return img
+        # x_imgs = int(img.shape[0]/block_size)
+        # y_imgs = int(img.shape[1]/block_size)
+        # i = 0
+        # for x_img in range(x_imgs):
+        #     for y_img in range(y_imgs):
+        #         start_x = x_img*block_size
+        #         start_y = y_img*block_size
+        #         end_x = x_img*block_size + block_size
+        #         end_y = y_img*block_size + block_size
+        #         img[start_x:end_x, start_y:end_y, :] = img_seq[i].astype(int)
+        #         i += 1
+        # return img
 
-    def get_image_seq(self, img, block_size):
+    def get_image_seq(self, img):
         img_seq = []
-        x_imgs = int(img.shape[0]/block_size)
-        y_imgs = int(img.shape[1]/block_size)
-        for x_img in range(x_imgs):
-            for y_img in range(y_imgs):
-                start_x = x_img*block_size
-                start_y = y_img*block_size
-                end_x = x_img*block_size + block_size
-                end_y = y_img*block_size + block_size
+        y_block_size = int(img.shape[1]/self.quilt_factor)
+        x_block_size = int(img.shape[0]/self.quilt_factor)
+        for x_img in range(self.quilt_factor):
+            for y_img in range(self.quilt_factor):
+                start_x = x_img*x_block_size
+                start_y = y_img*y_block_size
+                end_x = x_img*x_block_size + x_block_size
+                end_y = y_img*y_block_size + y_block_size
                 img_seq.append(img[start_x:end_x, start_y:end_y])
         return img_seq
+               
+       #  img_seq = []
+       #  x_imgs = int(img.shape[0]/block_size)
+       #  y_imgs = int(img.shape[1]/block_size)
+       #  for x_img in range(x_imgs):
+       #      for y_img in range(y_imgs):
+       #          start_x = x_img*block_size
+       #          start_y = y_img*block_size
+       #          end_x = x_img*block_size + block_size
+       #          end_y = y_img*block_size + block_size
+       #          img_seq.append(img[start_x:end_x, start_y:end_y])
+       #  return img_seq
 
     def get_dot_count_and_seg_seq(self, img_seq):
         seg_seq = []
