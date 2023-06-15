@@ -208,7 +208,6 @@ def add_label_to_img(img, mask_img):
             fontScale=2,
             color=(0,255,0),
             thickness=2)
-        
     return img
 
 

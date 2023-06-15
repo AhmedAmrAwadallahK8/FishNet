@@ -163,7 +163,7 @@ class MSSGui():
         self.master_node = owner
         self.root = tk.Tk()
         self.root.geometry(f"{self.app_width}x{self.app_height}")
-        self.root.title("Manual Sam Segmenter")
+        self.root.title("Nucleus Selection Step")
         self.box_tag = "box"
 
         img_arr = np.zeros((self.canv_height, self.canv_width,3)).astype(np.uint8)
@@ -183,6 +183,7 @@ class MSSGui():
         self.button_frame.columnconfigure(2, weight=1)
         self.button_frame.columnconfigure(3, weight=1)
         self.button_frame.columnconfigure(4, weight=1)
+        self.button_frame.columnconfigure(5, weight=1)
 
         self.continue_button = tk.Button(self.button_frame,
                                          text="Continue",
@@ -209,10 +210,23 @@ class MSSGui():
                                      command=self.segment)
         self.segment_button.grid(row=0, column=4, sticky=tk.W+tk.E)
 
+        self.nuc_overlay_btn = tk.Button(self.button_frame,
+                                     text="Nucleus Overlay",
+                                     command=self.nuc_overlay)
+        self.nuc_overlay_btn.grid(row=0, column=5, sticky=tk.W+tk.E)
+
         self.button_frame.pack(fill='x')
         self.curr_view = "default"
         self.canvas.bind('<Motion>', self.on_mouse_over, '+')
         self.canvas.bind('<Button-3>', self.on_click, '+')
+        self.overlay_with_nuc_seg = False
+
+    def nuc_overlay(self):
+        if self.curr_rep == 1: #Cyto segmentation step
+            self.overlay_with_nuc_seg = not self.overlay_with_nuc_seg
+            self.refresh_view()
+        else:
+            print("This toggle does nothing until a Nucleus segmentation has been confirmed")
 
     def get_bboxes(self):
         bboxes = []
@@ -227,12 +241,15 @@ class MSSGui():
         self.master_node.update_bboxes(bboxes)
         self.master_node.process_img()
         self.refresh_view()
-        img_arr = self.master_node.get_curr_img()
-        self.update_img(img_arr)
+        # img_arr = self.master_node.get_curr_img()
+        # self.update_img(img_arr)
 
     def refresh_view(self):
         if self.curr_view == "default":
             img_arr = self.master_node.get_curr_img()
+            if self.overlay_with_nuc_seg:
+                nuc_seg = self.master_node.get_nuc_seg()
+                img_arr = np.where(nuc_seg > 0, nuc_seg, img_arr)
             self.update_img(img_arr)
         elif self.curr_view == "segment":
             img_arr = self.master_node.get_segment_img()
@@ -249,6 +266,9 @@ class MSSGui():
         mask_class = self.get_mask_class_from_user()
         self.master_node.produce_and_store_mask(mask_class)
         self.curr_rep += 1
+        if self.curr_rep == 1:
+            self.root.title("Cytoplasm Selection Step")
+
         if self.curr_rep == self.image_reps:
             self.master_node.set_valid_gui_exit()
             self.exit_gui()
@@ -272,13 +292,15 @@ class MSSGui():
         
     def segment_view(self):
         self.curr_view = "segment"
-        img_arr = self.master_node.get_segment_img()
-        self.update_img(img_arr)
+        self.refresh_view()
+        # img_arr = self.master_node.get_segment_img()
+        # self.update_img(img_arr)
         
     def default_view(self):
         self.curr_view = "default"
-        img_arr = self.master_node.get_curr_img()
-        self.update_img(img_arr)
+        self.refresh_view()
+        # img_arr = self.master_node.get_curr_img()
+        # self.update_img(img_arr)
 
     def segment_box(self, box):
         pass
@@ -339,6 +361,11 @@ class ManualSamCellSegmenter(AbstractNode):
 
     def set_valid_gui_exit(self):
         self.valid_gui_exit = True
+
+    def get_nuc_seg(self):
+        nuc_id_mask = self.output_pack[self.nuc_class]
+        nuc_seg = ip.generate_single_colored_mask(nuc_id_mask, color=(0, 0, 255))
+        return nuc_seg
 
     def pop_boxes(self):
         if len(self.input_boxes) > 0:
