@@ -205,3 +205,16 @@ def generate_colored_mask(mask_img):
         color_mask[:,:,2] += color_instance*blue_pix
     color_mask = color_mask.astype(int)
     return color_mask
+
+def generate_single_colored_mask(mask_img, color=(255, 0, 0):
+    color_shape = (mask_img.shape[0], mask_img.shape[1], 3)
+    color_mask = np.zeros(color_shape)
+    color_instance = np.where(mask_img > 0, 1, 0)
+    red_pix = color[0]
+    green_pix = color[1]
+    blue_pix = color[2]
+    color_mask[:,:,0] += color_instance*red_pix
+    color_mask[:,:,1] += color_instance*green_pix
+    color_mask[:,:,2] += color_instance*blue_pix
+    color_mask = color_mask.astype(int)
+    return color_mask
