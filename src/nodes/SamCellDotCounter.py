@@ -3,6 +3,7 @@
 # More sophisticated quilting
 
 import numpy as np
+import random
 import torch
 import torchvision
 import cv2
@@ -22,6 +23,8 @@ class SamCellDotCounter(AbstractNode):
                          node_title="Auto SAM Cell Dot Counter")
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.save_folder = "particle_segmentations/"
+        self.max_pix_area = 1024*1024
+        self.quilt_factor = 1
         self.block_size = 256
         self.base_img = None
         self.sam_mask_generator = None
@@ -29,12 +32,16 @@ class SamCellDotCounter(AbstractNode):
         self.sam_predictor = None
         self.cyto_id_mask = None
         self.nuc_id_mask = None
+        self.cytoplasm_key = "cyto"
+        self.nucleus_key = "nuc"
+        self.cell_id_mask = None
         self.csv_name =  "dot_counts.csv"
         self.nuc_counts = {}
         self.cyto_counts = {}
         self.seg_imgs = {}
         self.raw_crop_imgs = {}
         save_folder = FishNet.save_folder + self.save_folder
+        self.prog = 0.00
         if not os.path.exists(save_folder):
             os.makedirs(save_folder)
 
@@ -45,7 +52,7 @@ class SamCellDotCounter(AbstractNode):
         self.sam.to(device=self.device)
         default_sam_settings = {
                     "points_per_side": 32, #32
-                    "pred_iou_thresh": 0.95, #0.5
+                    "pred_iou_thresh": 0.5, #0.5
                     "stability_score_thresh": 0.95, #0.85
                     "crop_n_layers": 1, #1
                     "crop_n_points_downscale_factor": 2,
@@ -65,6 +72,10 @@ class SamCellDotCounter(AbstractNode):
         mask_pack = FishNet.pipeline_output["ManualCellMaskPack"]
         self.cyto_id_mask = mask_pack["cytoplasm"]
         self.nuc_id_mask = mask_pack["nucleus"]
+        self.cell_id_mask = {
+            self.cytoplasm_key: self.cyto_id_mask,
+            self.nucleus_key: self.nuc_id_mask
+        }
         
 
     def save_output(self):
@@ -72,8 +83,10 @@ class SamCellDotCounter(AbstractNode):
         self.save_segs()
 
     def process(self):
-        self.process_cytos()
-        self.process_nucs()
+        self.process_cell_part(self.cytoplasm_key)
+        self.process_cell_part(self.nucleus_key)
+        # self.process_cytos()
+        # self.process_nucs()
         self.set_node_as_successful()
 
     def save_dot_count_csv(self):
@@ -96,6 +109,57 @@ class SamCellDotCounter(AbstractNode):
         for save_name in self.raw_crop_imgs:
             img_path = self.save_folder + save_name
             self.save_img(self.raw_crop_imgs[save_name], img_path)
+
+    def process_cell_part(self, cell_part):
+        print(f"Processing {cell_part}...")
+        id_mask = self.cell_id_mask[cell_part]
+        cell_ids = np.unique(id_mask)
+        print(f"Percent Done: 0.00%")
+        for cell_id in cell_ids:
+            if cell_id == 0:
+                continue
+
+            targ_shape = self.base_img.shape
+            id_activation = np.where(id_mask == cell_id, 1, 0)
+            resized_id_activation = id_activation[:, :, np.newaxis]
+            resized_id_activation = ip.resize_img(
+                resized_id_activation,
+                targ_shape[0],
+                targ_shape[1],
+                inter_type="linear")
+            resized_id_activation = resized_id_activation[:, :, np.newaxis]
+            id_bbox = self.get_segmentation_bbox(id_activation)
+            id_bbox = ip.rescale_boxes(
+                [id_bbox],
+                id_activation.shape,
+                self.base_img.shape)[0]
+            xmin = int(id_bbox[0])
+            xmax = int(id_bbox[2])
+            ymin = int(id_bbox[1])
+            ymax = int(id_bbox[3])
+            img_id_activated = resized_id_activation * self.base_img
+            img_crop = img_id_activated[ymin:ymax, xmin:xmax, :].copy()
+            # img_crop = ip.resize_img_to_pixel_size(img_crop, self.max_pix_area)
+            img_crop = ip.resize_img(img_crop, 1024, 1024)
+            # Might be problematic to do this
+            img_crop = np.where(img_crop == 0, random.randint(0, 254), img_crop)
+
+            dot_count = None
+            seg = None
+            if self.quilt_factor < 2:
+                dot_count, seg = self.get_dot_count_and_seg_pure(img_crop.copy())
+            elif self.quilt_factor >= 2:
+                dot_count, seg = self.get_dot_count_and_seg_quilt(img_crop.copy())
+            if cell_part == self.cytoplasm_key:
+                self.cyto_counts[cell_id] = dot_count
+            elif cell_part == self.nucleus_key:
+                self.nuc_counts[cell_id] = dot_count
+            self.store_segmentation(cell_part, cell_id, img_crop, seg)
+            if cell_part == self.cytoplasm_key:
+                self.store_raw_crop(id_bbox, cell_id)
+
+            percent_done = cell_id / (len(cell_ids)-1)*100
+            print(f"Percent Done: {percent_done:.2f}%")
 
     def process_cytos(self):
         cyto_ids = np.unique(self.cyto_id_mask)
@@ -178,7 +242,7 @@ class SamCellDotCounter(AbstractNode):
             self.store_segmentation("nuc", nuc_id, img_crop, seg)
 
     def store_segmentation(self, cell_part, cell_id, orig_img, segmentation):
-        img_overlay = orig_img*0.5 + segmentation*0.5
+        img_overlay = orig_img*0.7 + segmentation*0.3
         save_name = f"cell{cell_id}_{cell_part}.png"
         self.seg_imgs[save_name] = img_overlay
         
@@ -207,11 +271,17 @@ class SamCellDotCounter(AbstractNode):
                     best_bbox = bbox
         return best_bbox
 
-    def get_dot_count_and_seg(self, img_subset):
+    def get_dot_count_and_seg_quilt(self, img_subset):
         img_seq = self.get_image_seq(img_subset, self.block_size)
         seg_seq, dot_count = self.get_dot_count_and_seg_seq(img_seq)
         restored_seg = self.coalesce_img_seq(img_subset, seg_seq, self.block_size)
         return dot_count, restored_seg
+
+    def get_dot_count_and_seg_pure(self, img_subset):
+        mask = self.mask_generator.generate(img_subset)
+        mask_img, dot_count = self.process_sam_mask(img_subset, mask)
+        seg = ip.generate_colored_mask(mask_img)
+        return dot_count, seg
 
     def coalesce_img_seq(self, img, img_seq, block_size):
         x_imgs = int(img.shape[0]/block_size)
@@ -262,7 +332,7 @@ class SamCellDotCounter(AbstractNode):
         instance_id = 0
         for m in sam_mask:
                 mask_sum = np.sum(m["segmentation"])
-                if mask_sum/total_pix > 0.1:
+                if mask_sum/total_pix > 0.05:
                     continue
                 instance_id += 1
                 mask_instance = np.zeros(mask_shape)
