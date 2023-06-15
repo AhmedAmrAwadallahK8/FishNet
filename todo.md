@@ -15,6 +15,7 @@
     - ~~Must be some metadata I Can exploit~~
 - Memory Optim
     - Save ND2 info into folder and retrieve when needed
+    - Not doing this for now, the memory allocation is small comparatively
 - Dot Counting
     - CPU Testing v GPU Time
     - ~~Quilt process generalizable~~

@@ -535,6 +535,7 @@ class ManualSamCellSegmenter(AbstractNode):
         cyto_contour = ip.resize_img(cyto_contour, base_height, base_width, "linear")
         outline_img = np.where(nuc_contour > 0, 255, base_img)
         outline_img = np.where(cyto_contour > 0, 255, outline_img)
+        outline_img = ip.add_label_to_img(outline_img, cyto_id_mask)
 
         nuc_activation = np.where(nuc_segment_img > 0, 1, 0)
         cyto_activation = np.where(cyto_segment_img > 0, 1, 0)

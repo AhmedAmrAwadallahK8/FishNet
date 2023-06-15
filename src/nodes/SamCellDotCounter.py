@@ -91,9 +91,9 @@ class SamCellDotCounter(AbstractNode):
         particle_csv = FishNet.save_folder + self.csv_name
         csv_file = open(particle_csv, "w")
         csv_file.write("cell_id,cyto_counts,nuc_counts\n")
-        for nuc_id in self.nuc_counts.keys():
-            if nuc_id in self.cyto_counts:
-                obs = str(nuc_id) + "," + str(self.cyto_counts[nuc_id]) + "," + str(self.nuc_counts[nuc_id])
+        for cell_id in self.nuc_counts.keys():
+            if cell_id in self.cyto_counts:
+                obs = str(cell_id) + "," + str(self.cyto_counts[cell_id]) + "," + str(self.nuc_counts[cell_id]) + "\n"
                 csv_file.write(obs)
         csv_file.write("\n")
         csv_file.close()

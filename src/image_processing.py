@@ -163,6 +163,93 @@ def generate_advanced_contour_img(mask_img):
         final_contour_img = np.where(final_contour_img > 0, 255, 0).astype(np.uint8)
     return final_contour_img
 
+def add_label_to_img(img, mask_img):
+    max_id = mask_img.max()
+    gray_mask = mask_img.astype(np.uint8)
+    scale_factor = np.sqrt(img.shape[0]*img.shape[1]/(mask_img.shape[0]*mask_img.shape[1]))
+    # gray_mask = cv2.cvtColor(mask_img.astype(np.uint8), cv2.COLOR_BGR2GRAY)
+    for id in range(1, max_id+1):
+        mask_instance = np.where(gray_mask == id, 255, 0).astype(np.uint8)
+        cnts = cv2.findContours(mask_instance, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        cnts = cnts[0] if len(cnts) == 2 else cnts[1]
+        targ_contour = None
+        largest_area = 0
+        best_bbox = 0
+        first = True
+        for c in cnts:
+            area = cv2.contourArea(c)
+            rect_pack = cv2.boundingRect(c) #x, y, w, h
+            x, y, w, h = rect_pack
+            bbox = [x, y, x+w, y+h]
+            if first:
+                targ_contour = c
+                first = False
+                largest_area = area
+                best_bbox = bbox
+            else:
+                if area > largest_area:
+                    targ_contour = c
+                    largest_area = area
+                    best_bbox = bbox
+        rect = cv2.minAreaRect(targ_contour)
+        box = cv2.boxPoints(rect)
+        box = np.int0(box)
+        x1 = box[0, 0]*scale_factor
+        y1 = box[0, 1]*scale_factor
+        x2 = box[2, 0]*scale_factor
+        y2 = box[2, 1]*scale_factor
+        rect_center = (int((x1+x2)/2), int((y1+y2)/2))
+        text = str(id)
+        cv2.putText(
+            img=img,
+            text=text,
+            org=rect_center,
+            fontFace=cv2.FONT_HERSHEY_TRIPLEX,
+            fontScale=2,
+            color=(0,255,0),
+            thickness=2)
+        
+    return img
+
+
+def generate_advanced_contour_with_label(mask_img):
+    contour_col = (255, 255, 255)
+    contour_shape = (mask_img.shape[0], mask_img.shape[1], 3)
+    final_contour_img = np.zeros(contour_shape, dtype=np.uint8)
+    gray_mask = mask_img.astype(np.uint8)
+    max_id = mask_img.max()
+
+    # gray_mask = cv2.cvtColor(mask_img.astype(np.uint8), cv2.COLOR_BGR2GRAY)
+    for id in range(1, max_id+1):
+        contour_img = np.zeros(contour_shape, dtype=np.uint8)
+        mask_instance = np.where(gray_mask == id, 255, 0).astype(np.uint8)
+        cnts = cv2.findContours(mask_instance, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        cnts = cnts[0] if len(cnts) == 2 else cnts[1]
+        for c in cnts:
+            cv2.drawContours(contour_img, [c], -1, contour_col, thickness=2)
+            contour_img = np.where(contour_img > 0, 255, 0).astype(np.uint8)
+            rect = cv2.minAreaRect(c)
+            box = cv2.boxPoints(rect)
+            box = np.int0(box)
+            x1 = box[0, 0]
+            y1 = box[0, 1]
+            x2 = box[2, 0]
+            y2 = box[2, 1]
+            rect_center = (int((x1+x2)/2), int((y1+y2)/2))
+            text = str(id)
+            cv2.putText(
+                img=contour_img,
+                text=text,
+                org=rect_center,
+                fontFace=cv2.FONT_HERSHEY_TRIPLEX,
+                fontScale=0.85,
+                color=(0,255,0),
+                thickness=2)
+        final_contour_img += contour_img
+        final_contour_img = np.where(final_contour_img > 255, 255, 0).astype(np.uint8)
+        
+    return final_contour_img
+
 def generate_anti_contour(base_contour):
     anti_mask = np.where(base_contour > 0, 0, 1)
     return anti_mask
