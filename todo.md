@@ -12,15 +12,15 @@
 
 - Automatic ND2 Parsing
     - ?
-    - Must be some metadata I Can exploit
+    - ~~Must be some metadata I Can exploit~~
 - Memory Optim
     - Save ND2 info into folder and retrieve when needed
 - Dot Counting
-	- CPU Testing v GPU Time
-	- Quilt process generalizable
-        - Try filling background with noise for performance
-        - Adjust pred iou thresh for accuracy
-        - Concede accuracy for speed?
+    - CPU Testing v GPU Time
+    - ~~Quilt process generalizable~~
+    - ~~Try filling background with noise for performance~~
+    - ~~Adjust pred iou thresh for accuracy~~
+    - ~~Concede accuracy for speed~~
 - Manual Seg
     - Cell ID on Image
     - Overlay of previous nuc seg for cyto

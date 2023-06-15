@@ -135,14 +135,17 @@ class FishNet():
 
    def extract_img_info(self):
       with ND2Reader(self.img_file) as images: 
+         channel_info = images.metadata["channels"]
+         z_len = len(images.metadata["z_levels"])
+         c_len = len(channel_info)
          images.iter_axes = 'zc'
-         z_stack = int(input("Specify how many z slices: "))
-         c_stack = int(input("Specify how many experiment channels: "))
+         # z_stack = int(input("Specify how many z slices: "))
+         # c_stack = int(input("Specify how many experiment channels: "))
          FishNet.raw_imgs = []
-         for z in range(z_stack):
+         for z in range(z_len):
             FishNet.raw_imgs.append([])
-            for c in range(c_stack):
-               FishNet.raw_imgs[z].append(images[z*c_stack + c])
+            for c in range(c_len):
+               FishNet.raw_imgs[z].append(images[z*c_len + c])
       FishNet.raw_imgs = np.asarray(FishNet.raw_imgs)
 
 if __name__ == '__main__':

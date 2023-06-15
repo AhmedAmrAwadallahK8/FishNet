@@ -1,7 +1,3 @@
-# Counts dots present in nucleus and cell
-# Save an image showing what the model counted so researcher can finish
-# More sophisticated quilting
-
 import numpy as np
 import random
 import torch
