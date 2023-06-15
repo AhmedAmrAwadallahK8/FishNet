@@ -212,7 +212,8 @@ class MSSGui():
 
         self.nuc_overlay_btn = tk.Button(self.button_frame,
                                      text="Nucleus Overlay",
-                                     command=self.nuc_overlay)
+                                     command=self.nuc_overlay,
+                                     bg="red")
         self.nuc_overlay_btn.grid(row=0, column=5, sticky=tk.W+tk.E)
 
         self.button_frame.pack(fill='x')
@@ -227,6 +228,11 @@ class MSSGui():
             self.refresh_view()
         else:
             print("This toggle does nothing until a Nucleus segmentation has been confirmed")
+
+        if self.overlay_with_nuc_seg:
+            self.nuc_overlay_btn.configure(bg = "green")
+        else:
+            self.nuc_overlay_btn.configure(bg = "red")
 
     def get_bboxes(self):
         bboxes = []
