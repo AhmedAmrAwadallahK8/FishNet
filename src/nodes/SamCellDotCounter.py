@@ -24,8 +24,8 @@ class SamCellDotCounter(AbstractNode):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.save_folder = "particle_segmentations/"
         self.max_pix_area = 1024*1024
-        self.quilt_factor = 1
-        self.block_size = 256
+        self.quilt_factor = 4
+        self.block_size = 512
         self.base_img = None
         self.sam_mask_generator = None
         self.sam = None
@@ -280,7 +280,7 @@ class SamCellDotCounter(AbstractNode):
     def get_dot_count_and_seg_pure(self, img_subset):
         mask = self.mask_generator.generate(img_subset)
         mask_img, dot_count = self.process_sam_mask(img_subset, mask)
-        seg = ip.generate_colored_mask(mask_img)
+        seg = ip.generate_single_colored_mask(mask_img)
         return dot_count, seg
 
     def coalesce_img_seq(self, img, img_seq, block_size):
@@ -321,7 +321,7 @@ class SamCellDotCounter(AbstractNode):
             masks = self.mask_generator.generate(img)
             mask_img, dot_counts = self.process_sam_mask(img, masks)
             total_dot_count += dot_counts
-            seg = ip.generate_colored_mask(mask_img)
+            seg = ip.generate_single_colored_mask(mask_img)
             seg_seq.append(seg)
         return seg_seq, total_dot_count
 
