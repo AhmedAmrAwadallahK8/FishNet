@@ -355,6 +355,7 @@ class MSSGui():
             self.root.title("Cytoplasm Selection Step")
         elif self.curr_rep == 2:
             self.root.title("Select Base Image for Saving")
+            self.overlay_with_nuc_seg = False
 
         if self.curr_rep == self.image_reps:
             self.master_node.set_valid_gui_exit()

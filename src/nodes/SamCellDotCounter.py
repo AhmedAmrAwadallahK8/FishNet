@@ -146,7 +146,7 @@ class SamCellDotCounter(AbstractNode):
                 int(img_crop_h*scale_factor),
                 int(img_crop_w*scale_factor))
             # Might be problematic to do this
-            img_crop = np.where(img_crop == 0, random.randint(0, 254), img_crop)
+            # img_crop = np.where(img_crop == 0, random.randint(0, 254), img_crop)
 
             dot_count = None
             seg = None
