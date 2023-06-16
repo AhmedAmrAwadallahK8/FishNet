@@ -29,6 +29,14 @@
     - Test z smash counting
     - Test z smash manual segmentations
 
+FINAL TODO
+- Auto z stack
+- Select analysis choice
+- Multi Spectrum Signals
+- Fix labeling crash issue
+- Don't process nuclei that dont have a cytoplasm
+- Progress Bar
+
 
 
 
