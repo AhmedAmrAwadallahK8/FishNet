@@ -165,7 +165,7 @@ class MSSGui():
         self.canv_height = canv_height
         self.app_width = int(canv_width*1.2)
         self.app_height = int(canv_width*1.2)
-        self.image_reps = 2
+        self.image_reps = 3
         self.curr_rep = 0
         self.master_node = owner
         self.root = tk.Tk()
@@ -285,12 +285,13 @@ class MSSGui():
             self.overlay_with_nuc_seg = not self.overlay_with_nuc_seg
             self.refresh_view()
         else:
-            print("This toggle does nothing until a Nucleus segmentation has been confirmed")
+            print("This toggle only works on the cytoplasm segmentation step")
 
         if self.overlay_with_nuc_seg:
             self.nuc_overlay_btn.configure(bg = "green")
         else:
             self.nuc_overlay_btn.configure(bg = "red")
+
 
     def get_bboxes(self):
         bboxes = []
@@ -300,8 +301,22 @@ class MSSGui():
             bboxes.append(self.canvas.coords(box))
         return bboxes
 
+    def remove_tiny_bboxes(self, bboxes):
+        min_area = 100
+        bboxes_pruned = []
+        for bbox in bboxes:
+            bbox_area = (bbox[2]-bbox[0])*(bbox[3]-bbox[1])
+            if bbox_area > min_area:
+                bboxes_pruned.append(bbox)
+        return bboxes_pruned
+          
+
     def segment(self):
+        if self.curr_rep == 2:
+            print("This button only works on a segmentation step")
+            return
         bboxes = self.get_bboxes()
+        bboxes = self.remove_tiny_bboxes(bboxes)
         self.master_node.update_bboxes(bboxes)
         self.master_node.process_img()
         self.refresh_view()
@@ -325,13 +340,18 @@ class MSSGui():
         self.remove_all_boxes()
 
     def continue_program(self):
-        bboxes = self.get_bboxes()
-        self.master_node.update_bboxes(bboxes)
-        mask_class = self.get_mask_class_from_user()
-        self.master_node.produce_and_store_mask(mask_class)
+        if self.curr_rep < 2:
+            bboxes = self.get_bboxes()
+            self.master_node.update_bboxes(bboxes)
+            mask_class = self.get_mask_class_from_user()
+            self.master_node.produce_and_store_mask(mask_class)
+
         self.curr_rep += 1
+
         if self.curr_rep == 1:
             self.root.title("Cytoplasm Selection Step")
+        elif self.curr_rep == 2:
+            self.root.title("Select Base Image for Saving")
 
         if self.curr_rep == self.image_reps:
             self.master_node.set_valid_gui_exit()
@@ -355,6 +375,9 @@ class MSSGui():
             self.canvas.delete(box)
         
     def segment_view(self):
+        if self.curr_rep == 2:
+            print("This button only works on a segmentation step")
+            return
         self.curr_view = "segment"
         self.refresh_view()
         # img_arr = self.master_node.get_segment_img()
@@ -598,6 +621,10 @@ class ManualSamCellSegmenter(AbstractNode):
         z_axi = self.translate_state_into_index(z_states, FishNet.z_meta)
         raw_img = ip.get_specified_channel_combo_img(channels, z_axi)
         if raw_img.sum() == 0:
+            raw_img = raw_img[:, :, np.newaxis]
+            zero_img = raw_img.copy()
+            raw_img = np.append(raw_img, zero_img, axis=2)
+            raw_img = np.append(raw_img, zero_img, axis=2)
             self.prepared_img = raw_img.copy()
             self.default_size_img = raw_img.copy()
         else:
@@ -609,18 +636,28 @@ class ManualSamCellSegmenter(AbstractNode):
             self.targ_pixel_area)
         self.curr_img = self.prepared_img.copy()
         self.segment_img = np.zeros(self.prepared_img.shape)
+        self.sam_predictor.set_image(self.prepared_img)
         
 
     def initialize_node(self):
-        raw_img = ip.get_all_channel_img()
-        self.prepared_img = ip.preprocess_img2(raw_img)
+        # raw_img = ip.get_all_channel_img()
+        # self.prepared_img = ip.preprocess_img2(raw_img)
+        # self.default_size_img = self.prepared_img.copy()
+
+        
+        zero_img = ip.get_zerod_img()
+        zero_img = zero_img[:, :, np.newaxis]
+        raw_img = zero_img.copy()
+        raw_img = np.append(raw_img, zero_img, axis=2)
+        raw_img = np.append(raw_img, zero_img, axis=2)
+        self.prepared_img = raw_img.copy()
         self.default_size_img = self.prepared_img.copy()
         self.prepared_img = ip.resize_img_to_pixel_size(
             self.prepared_img,
             self.targ_pixel_area)
         self.curr_img = self.prepared_img.copy()
         self.segment_img = np.zeros(self.prepared_img.shape)
-        canv_height, canv_width, _ =self.prepared_img.shape
+        canv_height, canv_width, _=self.prepared_img.shape
         self.gui = MSSGui(self, canv_height, canv_width)
         self.gui.update_img(self.prepared_img)
         self.setup_sam()

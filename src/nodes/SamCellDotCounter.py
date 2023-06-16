@@ -38,6 +38,7 @@ class SamCellDotCounter(AbstractNode):
         self.raw_crop_imgs = {}
         save_folder = FishNet.save_folder + self.save_folder
         self.prog = 0.00
+        self.max_cyto_id = 0
         if not os.path.exists(save_folder):
             os.makedirs(save_folder)
 
@@ -72,6 +73,7 @@ class SamCellDotCounter(AbstractNode):
             self.cytoplasm_key: self.cyto_id_mask,
             self.nucleus_key: self.nuc_id_mask
         }
+        self.max_cell_id = np.max(self.cyto_id_mask)
         
 
     def save_output(self):
@@ -112,7 +114,7 @@ class SamCellDotCounter(AbstractNode):
         cell_ids = np.unique(id_mask)
         print(f"Percent Done: 0.00%")
         for cell_id in cell_ids:
-            if cell_id == 0:
+            if cell_id == 0 or cell_id > self.max_cell_id:
                 continue
 
             targ_shape = self.base_img.shape
@@ -161,7 +163,7 @@ class SamCellDotCounter(AbstractNode):
                 self.store_raw_crop(id_bbox, cell_id)
 
             percent_done = cell_id / (len(cell_ids)-1)*100
-            print(f"Percent Done: {percent_done:.2f}%")
+            print(f"Overall percent Done: {percent_done:.2f}%")
 
     def process_cytos(self):
         cyto_ids = np.unique(self.cyto_id_mask)
@@ -247,7 +249,6 @@ class SamCellDotCounter(AbstractNode):
         img_overlay = orig_img*0.9 + segmentation*0.1
         save_name = f"cell{cell_id}_{cell_part}.png"
         self.seg_imgs[save_name] = img_overlay
-        
 
     def get_segmentation_bbox(self, single_id_mask):
         gray = single_id_mask[:, :, np.newaxis].astype(np.uint8)

@@ -32,6 +32,11 @@ def get_all_channel_img():
     raw_img += FishNet.raw_imgs[0][3].copy()
     return raw_img
 
+def get_zerod_img():
+    from src.fishnet import FishNet
+    zerod_img = np.zeros(FishNet.raw_imgs[0][0].shape)
+    return zerod_img
+
 def get_specified_channel_combo_img(channels, z_axi):
     from src.fishnet import FishNet
     raw_img = None
@@ -86,6 +91,23 @@ def preprocess_img(img):
     img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
     img = cv2.resize(img, dsize=(512, 512), interpolation=cv2.INTER_CUBIC)
     return img
+
+def resize_img_to_pixel_size2(img, targ_pixel_area):
+    img_shape = img.shape
+    pixel_area = img_shape[0]*img_shape[1]
+    orig_h = img_shape[0]
+    orig_w = img_shape[1]
+
+    resize_factor = int(np.sqrt(targ_pixel_area/pixel_area))
+    
+    orig_h = int(orig_h)
+    orig_w = int(orig_w)
+    resized_h = int(orig_h*resize_factor)
+    resized_w = int(orig_w*resize_factor)
+    
+    final_img = resize_img(img, resized_h, resized_w)
+    
+    return final_img
 
 def resize_img_to_pixel_size(img, targ_pixel_area):
     img_shape = img.shape
