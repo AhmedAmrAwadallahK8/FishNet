@@ -28,6 +28,8 @@ class SampleNode():
 
 class FishNet():
    raw_imgs = []
+   channel_meta = {}
+   z_meta = 0
    pipeline_output = {}
    save_folder = "output/"
    def __init__(self):
@@ -133,11 +135,22 @@ class FishNet():
    def prompt_user_for_file(self):
       self.img_file = input("Input file to be processed: ")
 
+   def convert_list_to_dict(self, arg_list):
+      final_dict = {}
+      for i in range(len(arg_list)):
+         k = arg_list[i]
+         final_dict[k] = i
+      return final_dict
+
    def extract_img_info(self):
       with ND2Reader(self.img_file) as images: 
          channel_info = images.metadata["channels"]
          z_len = len(images.metadata["z_levels"])
+         z_info = [x for x in range(1, z_len+1)]
          c_len = len(channel_info)
+         
+         FishNet.z_meta = self.convert_list_to_dict(z_info)
+         FishNet.channel_meta = self.convert_list_to_dict(channel_info)
          images.iter_axes = 'zc'
          # z_stack = int(input("Specify how many z slices: "))
          # c_stack = int(input("Specify how many experiment channels: "))

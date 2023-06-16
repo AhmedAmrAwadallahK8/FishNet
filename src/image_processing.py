@@ -26,11 +26,28 @@ def get_raw_nucleus_img():
 def get_all_channel_img():
     # This is not generalizable
     from src.fishnet import FishNet
-    raw_img = FishNet.raw_imgs[0][0]
-    raw_img += FishNet.raw_imgs[0][1]  
-    raw_img += FishNet.raw_imgs[0][2]
-    raw_img += FishNet.raw_imgs[0][3]
+    raw_img = FishNet.raw_imgs[0][0].copy()
+    raw_img += FishNet.raw_imgs[0][1].copy()
+    raw_img += FishNet.raw_imgs[0][2].copy()
+    raw_img += FishNet.raw_imgs[0][3].copy()
     return raw_img
+
+def get_specified_channel_combo_img(channels, z_axi):
+    from src.fishnet import FishNet
+    raw_img = None
+    if len(channels) <= 0 or len(z_axi) <= 0:
+        raw_img = np.zeros(FishNet.raw_imgs[0][0].shape)
+        return raw_img
+
+    first = True
+    for z in z_axi:
+        for c in channels:
+            if first:
+                first = False
+                raw_img = FishNet.raw_imgs[z][c].copy()
+            raw_img += FishNet.raw_imgs[z][c].copy()
+    return raw_img
+    
 
 def get_all_mrna_img():
     # This is not generalizable

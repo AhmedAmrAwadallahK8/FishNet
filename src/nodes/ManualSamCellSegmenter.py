@@ -154,6 +154,13 @@ class RectTracker:
 
 class MSSGui():
     def __init__(self, owner, canv_height, canv_width):
+        from src.fishnet import FishNet
+        self.channel_states = {}
+        self.z_states = {}
+        for k in FishNet.channel_meta.keys():
+            self.channel_states[k] = False
+        for k in FishNet.z_meta.keys():
+            self.z_states[k] = False
         self.canv_width = canv_width
         self.canv_height = canv_height
         self.app_width = int(canv_width*1.2)
@@ -216,11 +223,62 @@ class MSSGui():
                                      bg="red")
         self.nuc_overlay_btn.grid(row=0, column=5, sticky=tk.W+tk.E)
 
+
+        # Channel Buttons
+        self.channel_buttons = {}
+        channel_row = 1
+        col = 0
+        for chan_k in self.channel_states.keys():
+            btn = tk.Button(
+                self.button_frame,
+                text=f"Experi: {chan_k}",
+                command=lambda m=chan_k: self.chan_adjustment(m),
+                bg="red")
+            btn.grid(row=channel_row, column=col, sticky=tk.W+tk.E)
+            self.channel_buttons[chan_k] = btn
+            col += 1
+
+        # Z Buttons
+        self.z_buttons = {}
+        z_row = 2
+        col = 0
+        for z_k in self.z_states.keys():
+            btn = tk.Button(
+                self.button_frame,
+                text=f"Z: {z_k}",
+                command=lambda m=z_k: self.z_adjustment(m),
+                bg="red")
+            btn.grid(row=z_row, column=col, sticky=tk.W+tk.E)
+            self.z_buttons[z_k] = btn
+            col += 1
+            
+            
+
         self.button_frame.pack(fill='x')
         self.curr_view = "default"
         self.canvas.bind('<Motion>', self.on_mouse_over, '+')
         self.canvas.bind('<Button-3>', self.on_click, '+')
         self.overlay_with_nuc_seg = False
+
+    def z_adjustment(self, btn_name):
+        btn = self.z_buttons[btn_name]
+        self.z_states[btn_name] = not self.z_states[btn_name] 
+        if self.z_states[btn_name]:
+            btn.configure(bg = "green")
+        else:
+            btn.configure(bg = "red")
+        self.master_node.reinitialize_base_img(self.channel_states, self.z_states)
+        self.reset()
+
+    def chan_adjustment(self, btn_name):
+        btn = self.channel_buttons[btn_name]
+        self.channel_states[btn_name] = not self.channel_states[btn_name] 
+        if self.channel_states[btn_name]:
+            btn.configure(bg = "green")
+        else:
+            btn.configure(bg = "red")
+        self.master_node.reinitialize_base_img(self.channel_states, self.z_states)
+        self.reset()
 
     def nuc_overlay(self):
         if self.curr_rep == 1: #Cyto segmentation step
@@ -524,6 +582,34 @@ class ManualSamCellSegmenter(AbstractNode):
 
     def hello_world(self):
         print("Hello World")
+
+    def translate_state_into_index(self, state_dict, ind_dict):
+        ind_list = []
+        for state_k in state_dict.keys():
+            state = state_dict[state_k]
+            if state:
+                ind_list.append(ind_dict[state_k])
+        return ind_list
+
+    # Currently Assuming canvas doesnt need to change
+    def reinitialize_base_img(self, channel_states, z_states):
+        from src.fishnet import FishNet
+        channels = self.translate_state_into_index(channel_states, FishNet.channel_meta)
+        z_axi = self.translate_state_into_index(z_states, FishNet.z_meta)
+        raw_img = ip.get_specified_channel_combo_img(channels, z_axi)
+        if raw_img.sum() == 0:
+            self.prepared_img = raw_img.copy()
+            self.default_size_img = raw_img.copy()
+        else:
+            self.prepared_img = ip.preprocess_img2(raw_img)
+            self.default_size_img = self.prepared_img.copy()
+
+        self.prepared_img = ip.resize_img_to_pixel_size(
+            self.prepared_img,
+            self.targ_pixel_area)
+        self.curr_img = self.prepared_img.copy()
+        self.segment_img = np.zeros(self.prepared_img.shape)
+        
 
     def initialize_node(self):
         raw_img = ip.get_all_channel_img()
