@@ -246,7 +246,8 @@ class SamCellDotCounter(AbstractNode):
             self.store_segmentation("nuc", nuc_id, img_crop, seg)
 
     def store_segmentation(self, cell_part, cell_id, orig_img, segmentation):
-        img_overlay = orig_img*0.9 + segmentation*0.1
+        img_overlay = np.where(segmentation > 0, segmentation, orig_img)
+        # img_overlay = orig_img*0.9 + segmentation*0.1
         save_name = f"cell{cell_id}_{cell_part}.png"
         self.seg_imgs[save_name] = img_overlay
 
