@@ -23,5 +23,10 @@ def generate_mask_img_manual(base_img, masks):
         mask_instance = np.zeros(mask_shape)
         segment_instance = np.where(m == True, instance_id, 0)
         mask_instance += segment_instance
-        mask_img += mask_instance
+        mask_img = np.where(
+            (mask_img == 0) &
+            (mask_instance > 0),
+            mask_instance,
+            mask_img)
+        # mask_img += mask_instance
     return mask_img.astype(int)

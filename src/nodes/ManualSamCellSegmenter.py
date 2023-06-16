@@ -25,6 +25,9 @@
     # For example let viewer see previous nucleus segmentation choices overlay
 # Let user choose channel view
 
+# OVERLAP PROBLEM
+# NUCLEUS EXISTING IN TWO CYTOS PROBLEM
+
 import numpy as np
 import torch
 import torchvision
@@ -439,6 +442,7 @@ class ManualSamCellSegmenter(AbstractNode):
         self.gui = None
         self.default_size_img = None
         self.prepared_img = None
+        self.prev_prepared_img = None
         self.curr_img = None
         self.segment_img = None
         self.nuc_class = "nucleus"
@@ -459,6 +463,7 @@ class ManualSamCellSegmenter(AbstractNode):
             self.input_boxes.pop()
 
     def produce_and_store_mask(self, mask_class):
+        self.sam_predictor.set_image(self.prepared_img)
         sam_masks = self.apply_sam_pred()
         mask_img =  sp.generate_mask_img_manual(self.prepared_img, sam_masks)
         self.output_pack[mask_class] = mask_img
@@ -500,6 +505,12 @@ class ManualSamCellSegmenter(AbstractNode):
             self.curr_img = self.prepared_img.copy()
             self.segment_img = np.zeros(self.prepared_img.shape)
             return
+        if np.array_equal(self.prepared_img, self.prev_prepared_img):
+            pass
+        else:
+            self.prev_prepared_img = self.prepared_img.copy()
+            self.sam_predictor.set_image(self.prepared_img)
+        
         sam_masks = self.apply_sam_pred()
             
         mask_img =  sp.generate_mask_img_manual(self.prepared_img, sam_masks)
@@ -636,7 +647,6 @@ class ManualSamCellSegmenter(AbstractNode):
             self.targ_pixel_area)
         self.curr_img = self.prepared_img.copy()
         self.segment_img = np.zeros(self.prepared_img.shape)
-        self.sam_predictor.set_image(self.prepared_img)
         
 
     def initialize_node(self):

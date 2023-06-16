@@ -221,8 +221,8 @@ def add_label_to_img(img, mask_img):
             x, y, w, h = rect_pack
             bbox = [x, y, x+w, y+h]
             if first:
-                targ_contour = c
                 first = False
+                targ_contour = c
                 largest_area = area
                 best_bbox = bbox
             else:
@@ -230,6 +230,8 @@ def add_label_to_img(img, mask_img):
                     targ_contour = c
                     largest_area = area
                     best_bbox = bbox
+        # print("Largest Area:", largest_area)
+        # print("Targ Cont:", targ_contour)
         rect = cv2.minAreaRect(targ_contour)
         box = cv2.boxPoints(rect)
         box = np.int0(box)
