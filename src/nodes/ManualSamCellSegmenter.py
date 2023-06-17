@@ -464,7 +464,11 @@ class ManualSamCellSegmenter(AbstractNode):
             self.input_boxes.pop()
 
     def produce_and_store_mask(self, mask_class):
-        self.sam_predictor.set_image(self.prepared_img)
+        if np.array_equal(self.prepared_img, self.prev_prepared_img):
+            pass
+        else:
+            self.prev_prepared_img = self.prepared_img.copy()
+            self.sam_predictor.set_image(self.prepared_img)
         sam_masks = self.apply_sam_pred()
         mask_img =  sp.generate_mask_img_manual(self.prepared_img, sam_masks)
         self.output_pack[mask_class] = mask_img
