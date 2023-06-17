@@ -3,7 +3,7 @@ FishNet utilizes the Segment Anything model from Meta to automate common image p
 
 The goal of this project is to provide a tool that helps automate visualization of smFISH microscopy images. This includes outlining cytoplasm, outlining nuclei, labeling cells, and counting the "dots" present within each depending on color channel.
 
-# Data Input
+### Data Input
 Program takes in an nd2 file and automatically parses color channels and z axis information
 
 ### Workflow Video
