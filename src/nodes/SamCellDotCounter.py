@@ -20,7 +20,7 @@ class SamCellDotCounter(AbstractNode):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.save_folder = "particle_segmentations/"
         self.max_pix_area = 1024*1024
-        self.quilt_factor = 2
+        self.quilt_factor = 1
         self.block_size = 512
         self.base_img = None
         self.sam_mask_generator = None

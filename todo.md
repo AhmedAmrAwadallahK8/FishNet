@@ -30,10 +30,12 @@
     - Test z smash manual segmentations
 
 FINAL TODO
+- Solve nucleus existing in multiple cyto issue
 - Auto z stack
 - Select analysis choice
 - Multi Spectrum Signals
 - Fix labeling crash issue
+- Clear output folder at start of program
 - Don't process nuclei that dont have a cytoplasm
 - Progress Bar
 

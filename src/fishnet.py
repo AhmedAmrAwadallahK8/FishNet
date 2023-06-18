@@ -5,12 +5,14 @@ import numpy as np
 import src.user_interaction as usr_int
 import sys
 import os
+import shutil
 from src.common import TempPipeline
 from src.nodes.SamNucleusSegmenter import SamNucleusSegmenter
 from src.nodes.SimpleNucleusCounter import SimpleNucleusCounter
 from src.nodes.ManualSamSegmenter import ManualSamSegmenter
 from src.nodes.ManualSamCellSegmenter import ManualSamCellSegmenter
 from src.nodes.SamCellDotCounter import SamCellDotCounter
+from src.nodes.CellMeanIntensity import CellMeanIntensity
 
 # Update such that nodes return success or failure instead of files to store
 # Have abstractnode communicate with fishnet for file storage instead
@@ -33,13 +35,18 @@ class FishNet():
    pipeline_output = {}
    save_folder = "output/"
    def __init__(self):
+      if not os.path.exists(FishNet.save_folder):
+          os.makedirs(FishNet.save_folder)
+      elif os.path.exists(FishNet.save_folder):
+          shutil.rmtree(FishNet.save_folder)
+          os.makedirs(FishNet.save_folder)
       self.placeholder = 0
       self.version = 0.01
       self.valid_file_types = ["nd2"]
       self.img_file = ""
       # self.all_imgs = []
       # self.nodes = [ManualSamSegmenter()]
-      self.nodes = [ManualSamCellSegmenter(), SamCellDotCounter()]
+      self.nodes = [ManualSamCellSegmenter(), CellMeanIntensity(), SamCellDotCounter()]
       self.pipeline = TempPipeline(self.nodes)
       del self.nodes
       self.valid_responses = ["yes", "y", "no", "n"]
@@ -53,8 +60,6 @@ class FishNet():
       self.welcome_message = f"Welcome to FishNet v{self.version}!"
       self.goodbye_message = f"Thank you for using FishNet! Goodbye."
 
-      if not os.path.exists(FishNet.save_folder):
-          os.makedirs(FishNet.save_folder)
 
    def run(self):
       self.welcome()
