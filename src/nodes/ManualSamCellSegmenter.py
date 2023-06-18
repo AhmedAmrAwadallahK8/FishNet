@@ -604,6 +604,13 @@ class ManualSamCellSegmenter(AbstractNode):
         # plt.axis('off')
         # plt.imshow(output_compare)
         # plt.show()
+
+    def remove_nuclei_with_no_cyto(self):
+        nuc_id_mask = self.output_pack[self.nuc_class]
+        cyto_id_mask = self.output_pack[self.cyto_class]
+        max_cyto_id = np.max(cyto_id_mask)
+        updated_nuc_id_mask = np.where(nuc_id_mask > max_cyto_id, 0, nuc_id_mask)
+        self.output_pack[self.nuc_class] = updated_nuc_id_mask
         
         
 
@@ -613,6 +620,7 @@ class ManualSamCellSegmenter(AbstractNode):
             self.set_node_as_successful()
             stitch_compelete = self.stitch_cells()
             self.remove_nucleus_from_cytoplasm_mask(stitch_compelete)
+            self.remove_nuclei_with_no_cyto()
         del self.sam
         del self.sam_mask_generator
         del self.sam_predictor

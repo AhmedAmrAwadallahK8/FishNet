@@ -342,10 +342,8 @@ class SamCellDotCounter(AbstractNode):
         seg_seq = []
         total_dot_count = 0
 
-        prog = 0
         for img in img_seq:
             prog += 1
-            print(prog)
             masks = self.mask_generator.generate(img)
             mask_img, dot_counts = self.process_sam_mask(img, masks)
             total_dot_count += dot_counts
