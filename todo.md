@@ -30,6 +30,8 @@
     - Test z smash manual segmentations
 
 FINAL TODO
+- Progress method needs to change
+- Explore some setting changes with SAM
 - Solve nucleus existing in multiple cyto issue
 - Auto z stack
 - Select analysis choice

@@ -3,6 +3,7 @@ import cv2
 import cv2 as cv
 from src.nodes.AbstractNode import AbstractNode
 import src.image_processing as ip
+import src.user_interaction as usr_int
 import os
 
 class CellMeanIntensity(AbstractNode):
@@ -21,13 +22,62 @@ class CellMeanIntensity(AbstractNode):
         self.csv_name =  "mean_intensity.csv"
         self.nuc_intensity = {}
         self.cyto_intensity = {}
+        self.channel_context = {}
+        self.z_context = {}
         self.raw_crop_imgs = {}
         self.max_cyto_id = 0
+        self.csv_data = []
+
+        self.z_key = "Z Axis"
+        self.c_key = "Channel Axis"
+        self.z = None
+        self.c = None
+
+        self.settings = [
+            self.z_key,
+            self.c_key]
+        self.user_settings = {}
+        self.setting_type = {
+            self.z_key: "categ",
+            self.c_key: "categ"}
+        self.setting_range = {}
+        self.setting_description = {}
+
+
+    def get_setting_selections_from_user(self):
+        print("")
+        for setting in self.settings:
+            user_setting = None
+            setting_message = self.setting_description[setting]
+            print(setting_message)
+            msg = f"Input a value for {setting}: "
+            setting_range = self.setting_range[setting]
+            if self.setting_type[setting] == "categ":
+                user_setting = usr_int.get_categorical_input_set_in_range(msg, setting_range)
+            self.user_settings[setting] = user_setting
+            print("")
+
+    def finish_setting_setup(self):
+        from src.fishnet import FishNet
+        self.setting_range = {
+            self.z_key: list(FishNet.z_meta.keys()),
+            self.c_key: list(FishNet.channel_meta.keys())}
+        z_descrip = f"Enter all the z axi that you are interested in seperated by commas\n"
+        z_descrip += f"Valid z axi are in {self.setting_range[self.z_key]}."
+
+        c_descrip = f"Enter all the channels that you are interested in seperated by commas\n"
+        c_descrip += f"Valid channels are in {self.setting_range[self.c_key]}."
+        self.setting_description = {
+            self.z_key: z_descrip,
+            self.c_key: c_descrip}
+        
 
     def initialize_node(self):
-        raw_img = ip.get_all_mrna_img()
-        self.base_img = raw_img.copy()
+        # raw_img = ip.get_all_mrna_img()
+        # self.base_img = raw_img.copy()
+        self.finish_setting_setup()
         self.get_id_mask()
+        self.get_setting_selections_from_user()
 
     def get_id_mask(self):
         from src.fishnet import FishNet
@@ -44,20 +94,38 @@ class CellMeanIntensity(AbstractNode):
     def save_output(self):
         self.save_csv()
 
+    def update_context_img(self):
+        from src.fishnet import FishNet
+        c_ind = FishNet.channel_meta[self.c]
+        z_ind = FishNet.z_meta[self.z]
+        self.base_img = ip.get_specified_channel_combo_img([c_ind], [z_ind])
+
     def process(self):
-        self.process_cell_part(self.cytoplasm_key)
-        self.process_cell_part(self.nucleus_key)
+        for z_axis in self.user_settings[self.z_key]:
+            for c_axis in self.user_settings[self.c_key]:
+                self.z = z_axis
+                self.c = c_axis
+                self.update_context_img()
+                self.process_cell_part(self.cytoplasm_key)
+                self.process_cell_part(self.nucleus_key)
+                self.store_csv_data()
         self.set_node_as_successful()
+
+    def store_csv_data(self):
+        for cell_id in self.nuc_intensity.keys():
+            if cell_id in self.cyto_intensity:
+                obs = f"{cell_id},{self.cyto_intensity[cell_id]:.3f},{self.nuc_intensity[cell_id]:.3f},{self.z_context[cell_id]},{self.channel_context[cell_id]}\n"
+                self.csv_data.append(obs)
+        
+    
 
     def save_csv(self):
         from src.fishnet import FishNet
         # csv of particle counts
         csv_path = FishNet.save_folder + self.csv_name
         csv_file = open(csv_path, "w")
-        csv_file.write("cell_id,cyto_mean_intensity,nuc_mean_intensity\n")
-        for cell_id in self.nuc_intensity.keys():
-            if cell_id in self.cyto_intensity:
-                obs = f"{cell_id},{self.cyto_intensity[cell_id]:.3f},{self.nuc_intensity[cell_id]:.3f}\n"
+        csv_file.write("cell_id,cyto_mean_intensity,nuc_mean_intensity,z_level,channel\n")
+        for obs in self.csv_data:
                 csv_file.write(obs)
         csv_file.write("\n")
         csv_file.close()
@@ -94,6 +162,8 @@ class CellMeanIntensity(AbstractNode):
                 self.cyto_intensity[cell_id] = mean_intensity
             elif cell_part == self.nucleus_key:
                 self.nuc_intensity[cell_id] = mean_intensity
+            self.channel_context[cell_id] = self.c
+            self.z_context[cell_id] = self.z
             percent_done = cell_id / (len(cell_ids)-1)*100
             print(f"Overall percent Done: {percent_done:.2f}%")
 

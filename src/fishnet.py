@@ -151,7 +151,7 @@ class FishNet():
       with ND2Reader(self.img_file) as images: 
          channel_info = images.metadata["channels"]
          z_len = len(images.metadata["z_levels"])
-         z_info = [x for x in range(1, z_len+1)]
+         z_info = [str(x) for x in range(1, z_len+1)]
          c_len = len(channel_info)
          
          FishNet.z_meta = self.convert_list_to_dict(z_info)

@@ -3,6 +3,7 @@ negative_responses = ["no", "n"]
 positive_responses = ["yes", "y"]
 
 invalid_response_id = -1
+valid_response_id = 2
 negative_response_id = 0
 positive_response_id = 1
 satisfied_response_id = 3
@@ -31,6 +32,42 @@ def get_numeric_input_in_range(prompt, numeric_range):
     while(usr_response == invalid_response_id):
         usr_response = float(input(prompt))
         if response_within_range(usr_response, numeric_range):
+            return usr_response
+        else:
+            print("Invalid input try again.")
+            usr_response = invalid_response_id
+
+def get_categorical_input_set_in_range(prompt, categ_set):
+    usr_response_state = invalid_response_id
+    valid_usr_set = []
+    while((usr_response_state == invalid_response_id)):
+        usr_response_state = valid_response_id
+        usr_response = input(prompt)
+        usr_set = usr_response.split(',')
+        for usr_item in usr_set:
+            if usr_item in categ_set:
+                if usr_item in valid_usr_set:
+                    print("Duplicate input try again")
+                    usr_response_state = invalid_response_id
+                    break
+                else:
+                    valid_usr_set.append(usr_item)
+            else:
+                invalid_input = "\"" + usr_item + "\""
+                print(f"{invalid_input} is invalid input try again.")
+                print("Common era is extra spaces look closesly at the allowed values and replicate them exactly")
+                usr_response_state = invalid_response_id
+                break
+        if usr_response_state == invalid_response_id:
+            valid_usr_set = []
+    return valid_usr_set
+    
+
+def get_categorical_input_in_range(prompt, categ_set):
+    usr_response = invalid_response_id
+    while(usr_response == invalid_response_id):
+        usr_response = input(prompt)
+        if usr_response in categ_set:
             return usr_response
         else:
             print("Invalid input try again.")
