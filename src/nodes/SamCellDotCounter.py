@@ -48,11 +48,11 @@ class SamCellDotCounter(AbstractNode):
         self.sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
         self.sam.to(device=self.device)
         default_sam_settings = {
-                    "points_per_side": 16, #32
-                    "pred_iou_thresh": 0.6, #0.5
-                    "stability_score_thresh": 0.95, #0.95
+                    "points_per_side": 32, #32
+                    "pred_iou_thresh": 0.5, #0.5
+                    "stability_score_thresh": 0.90, #0.95
                     "crop_n_layers": 0, #1
-                    "crop_n_points_downscale_factor": 2, #2
+                    "crop_n_points_downscale_factor": 0, #2
                     "min_mask_region_area": 10 } #1
         self.mask_generator = SamAutomaticMaskGenerator(model=self.sam, **default_sam_settings)
 

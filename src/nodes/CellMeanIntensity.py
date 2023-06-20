@@ -115,7 +115,7 @@ class CellMeanIntensity(AbstractNode):
                 self.process_cell_part(self.nucleus_key)
                 self.store_csv_data()
                 percent_done = process_count/total_count*100
-                print(f"Overall percent Done: {percent_done:.2f}%")
+                print(f"Percent Done: {percent_done:.2f}%")
         self.set_node_as_successful()
 
     def store_csv_data(self):
