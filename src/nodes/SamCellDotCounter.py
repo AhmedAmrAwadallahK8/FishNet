@@ -1,3 +1,5 @@
+# Approximate time to completion
+# Prevent cytos with no nucs from being processed
 import numpy as np
 import random
 import torch
@@ -21,7 +23,7 @@ class SamCellDotCounter(AbstractNode):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.save_folder = "particle_segmentations/"
         self.max_pix_area = 1024*1024 #1024*1024
-        self.quilt_factor = 2
+        self.quilt_factor = 1
         self.block_size = 512
         self.base_img = None
         self.sam_mask_generator = None
@@ -47,16 +49,19 @@ class SamCellDotCounter(AbstractNode):
 
         self.z_key = "Z Axis"
         self.c_key = "Channel Axis"
+        self.quilt_key = "Quilt Factor"
         self.z = None
         self.c = None
 
         self.settings = [
+            self.quilt_key,
             self.z_key,
             self.c_key]
         self.user_settings = {}
         self.setting_type = {
             self.z_key: "categ",
-            self.c_key: "categ"}
+            self.c_key: "categ",
+            self.quilt_key: "int"}
         self.setting_range = {}
         self.setting_description = {}
 
@@ -70,12 +75,16 @@ class SamCellDotCounter(AbstractNode):
             setting_range = self.setting_range[setting]
             if self.setting_type[setting] == "categ":
                 user_setting = usr_int.get_categorical_input_set_in_range(msg, setting_range)
+            elif self.setting_type[setting] == "int":
+                user_setting = usr_int.get_numeric_input_in_range(msg, setting_range)
+                user_setting = int(user_setting)
             self.user_settings[setting] = user_setting
             print("")
 
     def finish_setting_setup(self):
         from src.fishnet import FishNet
         self.setting_range = {
+            self.quilt_key: [1,4],
             self.z_key: list(FishNet.z_meta.keys()),
             self.c_key: list(FishNet.channel_meta.keys())}
         z_descrip = f"Enter all the z axi that you are interested in seperated by commas\n"
@@ -83,9 +92,14 @@ class SamCellDotCounter(AbstractNode):
 
         c_descrip = f"Enter all the channels that you are interested in seperated by commas\n"
         c_descrip += f"Valid channels are in {self.setting_range[self.c_key]}."
+
+        quilt_descrip = f"The quilt factor increase performance at segmenting"
+        quilt_descrip += f"small objects at the cost of increased computation time.\n"
+        quilt_descrip += f"Recommended value is 2.\n"
         self.setting_description = {
             self.z_key: z_descrip,
-            self.c_key: c_descrip}
+            self.c_key: c_descrip,
+            self.quilt_key: quilt_descrip}
 
     def update_context_img(self):
         from src.fishnet import FishNet
@@ -117,6 +131,7 @@ class SamCellDotCounter(AbstractNode):
         self.get_id_mask()
         self.setup_sam()
         self.get_setting_selections_from_user()
+        self.quilt_factor = self.user_settings[self.quilt_key]
 
     def get_id_mask(self):
         from src.fishnet import FishNet
@@ -160,7 +175,7 @@ class SamCellDotCounter(AbstractNode):
     def store_csv_data(self):
         for cell_id in self.nuc_counts.keys():
             if cell_id in self.cyto_counts.keys():
-                obs = f"{cell_id},{self.cyto_counts[cell_id]:.3f},{self.nuc_counts[cell_id]:.3f},{self.z},{self.c}\n"
+                obs = f"{cell_id},{self.cyto_counts[cell_id]:d},{self.nuc_counts[cell_id]:d},{self.z},{self.c}\n"
                 self.csv_data.append(obs)
 
     def save_dot_count_csv(self):
@@ -285,7 +300,7 @@ class SamCellDotCounter(AbstractNode):
             xmax = base_shape[1]-1
         if ymax >= base_shape[0]:
             ymax = base_shape[0] - 1
-        save_name = f"c{cell_id}_raw.png"
+        save_name = f"cell{cell_id}_z{self.z}_{self.c}_raw.png"
         self.raw_crop_imgs[save_name] = self.base_img[ymin:ymax, xmin:xmax, :].copy()
         
 
@@ -322,7 +337,7 @@ class SamCellDotCounter(AbstractNode):
     def store_segmentation(self, cell_part, cell_id, orig_img, segmentation):
         img_overlay = np.where(segmentation > 0, segmentation, orig_img)
         # img_overlay = orig_img*0.9 + segmentation*0.1
-        save_name = f"cell{cell_id}_{cell_part}_{self.z}_{self.c}.png"
+        save_name = f"cell{cell_id}_{cell_part}_z{self.z}_{self.c}_seg.png"
         self.seg_imgs[save_name] = img_overlay
 
     def get_segmentation_bbox(self, single_id_mask):
