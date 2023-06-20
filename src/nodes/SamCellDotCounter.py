@@ -8,6 +8,7 @@ from src.nodes.AbstractNode import AbstractNode
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator, SamPredictor
 import src.image_processing as ip
 import src.sam_processing as sp
+import src.user_interaction as usr_int
 import os
 
 class SamCellDotCounter(AbstractNode):
@@ -42,6 +43,57 @@ class SamCellDotCounter(AbstractNode):
         if not os.path.exists(save_folder):
             os.makedirs(save_folder)
 
+        self.csv_data = []
+
+        self.z_key = "Z Axis"
+        self.c_key = "Channel Axis"
+        self.z = None
+        self.c = None
+
+        self.settings = [
+            self.z_key,
+            self.c_key]
+        self.user_settings = {}
+        self.setting_type = {
+            self.z_key: "categ",
+            self.c_key: "categ"}
+        self.setting_range = {}
+        self.setting_description = {}
+
+    def get_setting_selections_from_user(self):
+        print("")
+        for setting in self.settings:
+            user_setting = None
+            setting_message = self.setting_description[setting]
+            print(setting_message)
+            msg = f"Input a value for {setting}: "
+            setting_range = self.setting_range[setting]
+            if self.setting_type[setting] == "categ":
+                user_setting = usr_int.get_categorical_input_set_in_range(msg, setting_range)
+            self.user_settings[setting] = user_setting
+            print("")
+
+    def finish_setting_setup(self):
+        from src.fishnet import FishNet
+        self.setting_range = {
+            self.z_key: list(FishNet.z_meta.keys()),
+            self.c_key: list(FishNet.channel_meta.keys())}
+        z_descrip = f"Enter all the z axi that you are interested in seperated by commas\n"
+        z_descrip += f"Valid z axi are in {self.setting_range[self.z_key]}."
+
+        c_descrip = f"Enter all the channels that you are interested in seperated by commas\n"
+        c_descrip += f"Valid channels are in {self.setting_range[self.c_key]}."
+        self.setting_description = {
+            self.z_key: z_descrip,
+            self.c_key: c_descrip}
+
+    def update_context_img(self):
+        from src.fishnet import FishNet
+        c_ind = FishNet.channel_meta[self.c]
+        z_ind = FishNet.z_meta[self.z]
+        raw_img = ip.get_specified_channel_combo_img([c_ind], [z_ind])
+        self.base_img = ip.preprocess_img2(raw_img)
+
     def setup_sam(self):
         sam_checkpoint = "sam_model/sam_vit_h_4b8939.pth"
         model_type = "vit_h"
@@ -59,10 +111,12 @@ class SamCellDotCounter(AbstractNode):
 
     def initialize_node(self):
         # Image Prep?
-        raw_img = ip.get_all_mrna_img()
-        self.base_img = ip.preprocess_img2(raw_img)
+        # raw_img = ip.get_all_mrna_img()
+        # self.base_img = ip.preprocess_img2(raw_img)
+        self.finish_setting_setup()
         self.get_id_mask()
         self.setup_sam()
+        self.get_setting_selections_from_user()
 
     def get_id_mask(self):
         from src.fishnet import FishNet
@@ -81,21 +135,41 @@ class SamCellDotCounter(AbstractNode):
         self.save_segs()
 
     def process(self):
-        self.process_cell_part(self.cytoplasm_key)
-        self.process_cell_part(self.nucleus_key)
-        # self.process_cytos()
-        # self.process_nucs()
+        print(f"Percent Done: 0.00%")
+        process_count = 0
+        total_count = len(self.user_settings[self.z_key])
+        total_count *= len(self.user_settings[self.c_key])
+        for z_axis in self.user_settings[self.z_key]:
+            for c_axis in self.user_settings[self.c_key]:
+                process_count += 1
+                self.z = z_axis
+                self.c = c_axis
+                self.update_context_img()
+                self.process_cell_part(self.cytoplasm_key)
+                self.process_cell_part(self.nucleus_key)
+                self.store_csv_data()
+                percent_done = process_count/total_count*100
+                print(f"Percent Done: {percent_done:.2f}%")
+                
         self.set_node_as_successful()
+
+        # self.process_cell_part(self.cytoplasm_key)
+        # self.process_cell_part(self.nucleus_key)
+        # self.set_node_as_successful()
+
+    def store_csv_data(self):
+        for cell_id in self.nuc_counts.keys():
+            if cell_id in self.cyto_counts.keys():
+                obs = f"{cell_id},{self.cyto_counts[cell_id]:.3f},{self.nuc_counts[cell_id]:.3f},{self.z},{self.c}\n"
+                self.csv_data.append(obs)
 
     def save_dot_count_csv(self):
         from src.fishnet import FishNet
         # csv of particle counts
         particle_csv = FishNet.save_folder + self.csv_name
         csv_file = open(particle_csv, "w")
-        csv_file.write("cell_id,cyto_counts,nuc_counts\n")
-        for cell_id in self.nuc_counts.keys():
-            if cell_id in self.cyto_counts:
-                obs = str(cell_id) + "," + str(self.cyto_counts[cell_id]) + "," + str(self.nuc_counts[cell_id]) + "\n"
+        csv_file.write("cell_id,cyto_counts,nuc_counts,z_level,channel\n")
+        for obs in self.csv_data:
                 csv_file.write(obs)
         csv_file.write("\n")
         csv_file.close()
@@ -109,10 +183,10 @@ class SamCellDotCounter(AbstractNode):
             self.save_img(self.raw_crop_imgs[save_name], img_path)
 
     def process_cell_part(self, cell_part):
-        print(f"Processing {cell_part}...")
+        # print(f"Processing {cell_part}...")
         id_mask = self.cell_id_mask[cell_part]
         cell_ids = np.unique(id_mask)
-        print(f"Percent Done: 0.00%")
+        # print(f"Percent Done: 0.00%")
         for cell_id in cell_ids:
             if cell_id == 0 or cell_id > self.max_cell_id:
                 continue
@@ -162,8 +236,8 @@ class SamCellDotCounter(AbstractNode):
             if cell_part == self.cytoplasm_key:
                 self.store_raw_crop(id_bbox, cell_id)
 
-            percent_done = cell_id / (len(cell_ids)-1)*100
-            print(f"Overall percent Done: {percent_done:.2f}%")
+            # percent_done = cell_id / (len(cell_ids)-1)*100
+            # print(f"Overall percent Done: {percent_done:.2f}%")
 
     def process_cytos(self):
         cyto_ids = np.unique(self.cyto_id_mask)
@@ -248,7 +322,7 @@ class SamCellDotCounter(AbstractNode):
     def store_segmentation(self, cell_part, cell_id, orig_img, segmentation):
         img_overlay = np.where(segmentation > 0, segmentation, orig_img)
         # img_overlay = orig_img*0.9 + segmentation*0.1
-        save_name = f"cell{cell_id}_{cell_part}.png"
+        save_name = f"cell{cell_id}_{cell_part}_{self.z}_{self.c}.png"
         self.seg_imgs[save_name] = img_overlay
 
     def get_segmentation_bbox(self, single_id_mask):
