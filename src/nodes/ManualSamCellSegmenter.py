@@ -1,33 +1,3 @@
-# Two part process
-# TODO
-# Support Batch Processing
-    # DONE Shift to batch processing
-# Support Easily remove and add Rect
-    # DONE
-# Two Object Segmentation
-    # DONE Need to decide if make a new GUI or continue to use the same
-    # DONE Moving forward with single GUI
-# Try to do everything in 1 GUI
-    # So far so good...
-# Update Reset
-    # DONE
-# Nucleus > Cytoplasm Logic Flow
-    # DONE Base flow
-    # DONE Need to post process results to link nuclei with cytoplasm
-    # DONE Need to adjust cytoplasm to not include nuclei in segmentation
-# Add ID on image
-# Move Continue button to far right
-# Add previous segmentation overlay button
-# Move on to Dot Counting but still plenty to do after
-# Support normal image size
-# Togglable rect view
-# Togglable previous selection view
-    # For example let viewer see previous nucleus segmentation choices overlay
-# Let user choose channel view
-
-# OVERLAP PROBLEM
-# NUCLEUS EXISTING IN TWO CYTOS PROBLEM
-
 import numpy as np
 import torch
 import torchvision
@@ -701,6 +671,9 @@ class ManualSamCellSegmenter(AbstractNode):
         del self.sam_mask_generator
         del self.sam_predictor
         torch.cuda.empty_cache()
+        cyto_id_mask = self.output_pack[self.cyto_class]
+        cell_count = np.max(cyto_id_mask)
+        print(f"Total Valid Cells Found: {cell_count:d}")
         
 
     def hello_world(self):

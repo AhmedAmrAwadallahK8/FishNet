@@ -1,5 +1,3 @@
-# Approximate time to completion
-# Deal with edges
 import numpy as np
 import random
 import torch
@@ -12,6 +10,7 @@ import src.image_processing as ip
 import src.sam_processing as sp
 import src.user_interaction as usr_int
 import os
+import time
 
 class SamCellDotCounter(AbstractNode):
     def __init__(self):
@@ -21,6 +20,7 @@ class SamCellDotCounter(AbstractNode):
                          user_can_retry=False,
                          node_title="Auto SAM Cell Dot Counter")
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.skip_node = False
         self.save_folder = "particle_segmentations/"
         self.max_pix_area = 1024*1024 #1024*1024
         self.quilt_factor = 1
@@ -42,6 +42,8 @@ class SamCellDotCounter(AbstractNode):
         save_folder = FishNet.save_folder + self.save_folder
         self.prog = 0.00
         self.max_cyto_id = 0
+        self.process_times = []
+        self.total_cell_count = 0
         if not os.path.exists(save_folder):
             os.makedirs(save_folder)
 
@@ -94,8 +96,9 @@ class SamCellDotCounter(AbstractNode):
         c_descrip += f"Valid channels are in {self.setting_range[self.c_key]}."
 
         quilt_descrip = f"The quilt factor increase performance at segmenting"
-        quilt_descrip += f"small objects at the cost of increased computation time.\n"
+        quilt_descrip += f" small objects at the cost of increased computation time.\n"
         quilt_descrip += f"Recommended value is 2.\n"
+        quilt_descrip += f"Valid channels are in {self.setting_range[self.quilt_key]}."
         self.setting_description = {
             self.z_key: z_descrip,
             self.c_key: c_descrip,
@@ -124,14 +127,19 @@ class SamCellDotCounter(AbstractNode):
 
 
     def initialize_node(self):
-        # Image Prep?
-        # raw_img = ip.get_all_mrna_img()
-        # self.base_img = ip.preprocess_img2(raw_img)
+        prompt = "The Sam Cell Dot Counter Node can take a long time to process"
+        prompt += " especially without gpu support.\n"
+        prompt += "Enter yes if you would like to skip this node otherwise enter no: "
+        usr_response_id = usr_int.ask_user_for_yes_or_no(prompt)
+        if usr_response_id == usr_int.positive_response_id:
+            self.skip_node = True
+            return
         self.finish_setting_setup()
         self.get_id_mask()
         self.setup_sam()
         self.get_setting_selections_from_user()
         self.quilt_factor = self.user_settings[self.quilt_key]
+        self.total_cell_count = np.max(self.cyto_id_mask)
 
     def get_id_mask(self):
         from src.fishnet import FishNet
@@ -150,7 +158,10 @@ class SamCellDotCounter(AbstractNode):
         self.save_segs()
 
     def process(self):
-        print(f"Percent Done: 0.00%")
+        if self.skip_node:
+            self.set_node_as_successful()
+            return
+        print(f"Percent Done: 0.00%, Estimated Time Completion To: NA")
         process_count = 0
         total_count = len(self.user_settings[self.z_key])
         total_count *= len(self.user_settings[self.c_key])
@@ -160,12 +171,21 @@ class SamCellDotCounter(AbstractNode):
                 self.z = z_axis
                 self.c = c_axis
                 self.update_context_img()
+
+                start_time = time.time()
                 self.process_cell_part(self.cytoplasm_key)
                 self.process_cell_part(self.nucleus_key)
+                end_time = time.time()
+                elapsed_time = end_time - start_time
+
+                self.process_times.append(elapsed_time)
                 self.store_csv_data()
+
+                mean_time = np.mean(self.process_times)
+                steps_to_go = total_count-process_count
+                time_left = steps_to_go*mean_time/60
                 percent_done = process_count/total_count*100
-                print(f"Percent Done: {percent_done:.2f}%")
-                
+                print(f"Percent Done: {percent_done:.2f}%, Estimated Time To Completion: {time_left:.2f}min")
         self.set_node_as_successful()
 
         # self.process_cell_part(self.cytoplasm_key)
