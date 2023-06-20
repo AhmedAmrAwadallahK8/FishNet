@@ -1,5 +1,5 @@
 # Approximate time to completion
-# Prevent cytos with no nucs from being processed
+# Deal with edges
 import numpy as np
 import random
 import torch

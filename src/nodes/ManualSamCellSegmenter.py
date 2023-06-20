@@ -538,6 +538,26 @@ class ManualSamCellSegmenter(AbstractNode):
         masks = masks.cpu().numpy()
         return masks
 
+    def get_likely_child_nuc_id(self, nuc_cyto_id_activated):
+        possible_child_nuc_ids = np.unique(nuc_cyto_id_activated)
+        first = True
+        best_nuc_id = -1
+        largest_nuc_area = -1
+        for nuc_id in possible_child_nuc_ids:
+            if nuc_id == 0:
+                continue
+            nuc_isolated = np.where(nuc_cyto_id_activated == nuc_id, 1, 0)
+            nuc_area = np.sum(nuc_isolated)
+            if first:
+                first = False
+                largest_nuc_area = nuc_area
+                best_nuc_id = nuc_id
+            else:
+                if nuc_area > largest_nuc_area:
+                    largest_nuc_area = nuc_area
+                    best_nuc_id = nuc_id
+        return best_nuc_id, largest_nuc_area
+
     def stitch_cells(self):
         temp_nuc_id = -1
         stitched_nuc_id_mask = None
@@ -548,18 +568,40 @@ class ManualSamCellSegmenter(AbstractNode):
 
         cyto_nuc_activated = cyto_id_mask * nuc_activation
         valid_cytos = np.unique(cyto_nuc_activated)
+
+        cyto_nuc_clues = {}
+
+        # need to search for best nuc ids for each cyto and then assign nuc to cyto
         for master_cyto_id in valid_cytos:
             if master_cyto_id == 0:
                 continue
             cyto_id_activation = np.where(cyto_id_mask == master_cyto_id, 1, 0)
             nuc_cyto_id_activated = cyto_id_activation*nuc_id_mask
-            child_nuc_id = np.unique(nuc_cyto_id_activated)[1]
-            # Code below is likely useless
-            # master_cyto_id should just by cyto_id
-            # nuc_id_activation = np.where(nuc_id_mask == child_nuc_id, 1, 0)
-            # cyto_nuc_id_activated = nuc_id_activation*cyto_id_mask
-            # master_cyto_id = np.unique(cyto_nuc_id_activated)[1]
-            # Code above is likely useless
+            cyto_nuc_clues[master_cyto_id] = self.get_likely_child_nuc_id(nuc_cyto_id_activated)
+
+        confirmed_nuc_area = {}
+        confirmed_nuc_id = {}
+
+        for master_cyto_id in cyto_nuc_clues.keys():
+            if master_cyto_id == 0:
+                continue
+            # cyto_id_activation = np.where(cyto_id_mask == master_cyto_id, 1, 0)
+            # nuc_cyto_id_activated = cyto_id_activation*nuc_id_mask
+            # child_nuc_id = np.unique(nuc_cyto_id_activated)[1]
+            # child_nuc_id, _ = self.get_likely_child_nuc_id(nuc_cyto_id_activated)
+            child_nuc_id, child_nuc_area = cyto_nuc_clues[master_cyto_id]
+            if master_cyto_id in confirmed_nuc_area.keys():
+                if child_nuc_area > confirmed_nuc_area[master_cyto_id]:
+                    confirmed_nuc_area[child_nuc_id] = child_nuc_area
+                    confirmed_nuc_id[child_nuc_id] = master_cyto_id
+                else:
+                    continue
+            else:
+                confirmed_nuc_area[child_nuc_id] = child_nuc_area
+                confirmed_nuc_id[child_nuc_id] = master_cyto_id
+
+        for child_nuc_id in confirmed_nuc_id.keys():
+            master_cyto_id = confirmed_nuc_id[child_nuc_id]
             id_collision_sum = np.sum(
                 np.where(
                     nuc_id_mask == master_cyto_id,
@@ -612,6 +654,38 @@ class ManualSamCellSegmenter(AbstractNode):
         updated_nuc_id_mask = np.where(nuc_id_mask > max_cyto_id, 0, nuc_id_mask)
         self.output_pack[self.nuc_class] = updated_nuc_id_mask
         
+    def remove_cyto_with_no_nuclei(self):
+        nuc_id_mask = self.output_pack[self.nuc_class]
+        cyto_id_mask = self.output_pack[self.cyto_class]
+        all_cytos = np.unique(cyto_id_mask)
+        linked_nucs = np.unique(nuc_id_mask)
+        updated_cyto_id_mask = cyto_id_mask.copy()
+        for cyto_id in all_cytos:
+            if cyto_id == 0:
+                continue
+            if cyto_id not in linked_nucs:
+                updated_cyto_id_mask = np.where(updated_cyto_id_mask == cyto_id, 0, updated_cyto_id_mask)
+        self.output_pack[self.cyto_class] = updated_cyto_id_mask
+
+    def reset_id_sequence(self):
+        nuc_id_mask = self.output_pack[self.nuc_class]
+        cyto_id_mask = self.output_pack[self.cyto_class]
+        all_cytos = np.unique(cyto_id_mask)
+        all_nucs = np.unique(nuc_id_mask)
+        updated_cyto_id_mask = cyto_id_mask.copy()
+        updated_nuc_id_mask = nuc_id_mask.copy()
+        new_id = 1
+        for cell_id in all_cytos:
+            if cell_id == 0:
+                continue
+            updated_cyto_id_mask = np.where(updated_cyto_id_mask == cell_id, new_id, updated_cyto_id_mask)
+            updated_nuc_id_mask = np.where(updated_nuc_id_mask == cell_id, new_id, updated_nuc_id_mask)
+            new_id += 1
+        self.output_pack[self.cyto_class] = updated_cyto_id_mask
+        self.output_pack[self.nuc_class] = updated_nuc_id_mask
+
+            
+        
         
 
     def process(self):
@@ -621,6 +695,8 @@ class ManualSamCellSegmenter(AbstractNode):
             stitch_compelete = self.stitch_cells()
             self.remove_nucleus_from_cytoplasm_mask(stitch_compelete)
             self.remove_nuclei_with_no_cyto()
+            self.remove_cyto_with_no_nuclei() #Has to be after nucleus
+            self.reset_id_sequence()
         del self.sam
         del self.sam_mask_generator
         del self.sam_predictor
