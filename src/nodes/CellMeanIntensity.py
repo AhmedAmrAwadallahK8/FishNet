@@ -101,14 +101,21 @@ class CellMeanIntensity(AbstractNode):
         self.base_img = ip.get_specified_channel_combo_img([c_ind], [z_ind])
 
     def process(self):
+        print(f"Percent Done: 0.00%")
+        process_count = 0 
+        total_count = len(self.user_settings[self.z_key])
+        total_count *= len(self.user_settings[self.c_key])
         for z_axis in self.user_settings[self.z_key]:
             for c_axis in self.user_settings[self.c_key]:
+                process_count += 1
                 self.z = z_axis
                 self.c = c_axis
                 self.update_context_img()
                 self.process_cell_part(self.cytoplasm_key)
                 self.process_cell_part(self.nucleus_key)
                 self.store_csv_data()
+                percent_done = process_count/total_count*100
+                print(f"Overall percent Done: {percent_done:.2f}%")
         self.set_node_as_successful()
 
     def store_csv_data(self):
@@ -131,10 +138,9 @@ class CellMeanIntensity(AbstractNode):
         csv_file.close()
 
     def process_cell_part(self, cell_part):
-        print(f"Processing {cell_part}...")
+        # print(f"Processing {cell_part}...")
         id_mask = self.cell_id_mask[cell_part]
         cell_ids = np.unique(id_mask)
-        print(f"Percent Done: 0.00%")
         for cell_id in cell_ids:
             if cell_id == 0 or cell_id > self.max_cell_id:
                 continue
@@ -164,8 +170,6 @@ class CellMeanIntensity(AbstractNode):
                 self.nuc_intensity[cell_id] = mean_intensity
             self.channel_context[cell_id] = self.c
             self.z_context[cell_id] = self.z
-            percent_done = cell_id / (len(cell_ids)-1)*100
-            print(f"Overall percent Done: {percent_done:.2f}%")
 
     def calc_mean_intensity(self, img_crop):
         total_pix = np.sum(np.where(img_crop > 0, 1, 0))

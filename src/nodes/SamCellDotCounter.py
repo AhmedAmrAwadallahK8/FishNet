@@ -19,8 +19,8 @@ class SamCellDotCounter(AbstractNode):
                          node_title="Auto SAM Cell Dot Counter")
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.save_folder = "particle_segmentations/"
-        self.max_pix_area = 1024*1024
-        self.quilt_factor = 1
+        self.max_pix_area = 1024*1024 #1024*1024
+        self.quilt_factor = 2
         self.block_size = 512
         self.base_img = None
         self.sam_mask_generator = None
@@ -48,12 +48,12 @@ class SamCellDotCounter(AbstractNode):
         self.sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
         self.sam.to(device=self.device)
         default_sam_settings = {
-                    "points_per_side": 32, #32
-                    "pred_iou_thresh": 0.5, #0.5
-                    "stability_score_thresh": 0.95, #0.85
-                    "crop_n_layers": 1, #1
-                    "crop_n_points_downscale_factor": 2,
-                    "min_mask_region_area": 1 }
+                    "points_per_side": 16, #32
+                    "pred_iou_thresh": 0.6, #0.5
+                    "stability_score_thresh": 0.95, #0.95
+                    "crop_n_layers": 0, #1
+                    "crop_n_points_downscale_factor": 2, #2
+                    "min_mask_region_area": 10 } #1
         self.mask_generator = SamAutomaticMaskGenerator(model=self.sam, **default_sam_settings)
 
 
@@ -343,7 +343,6 @@ class SamCellDotCounter(AbstractNode):
         total_dot_count = 0
 
         for img in img_seq:
-            prog += 1
             masks = self.mask_generator.generate(img)
             mask_img, dot_counts = self.process_sam_mask(img, masks)
             total_dot_count += dot_counts
