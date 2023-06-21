@@ -41,6 +41,7 @@ def get_categorical_input_set_in_range(prompt, categ_set):
     usr_response_state = invalid_response_id
     valid_usr_set = []
     while((usr_response_state == invalid_response_id)):
+        valid_usr_set = []
         usr_response_state = valid_response_id
         usr_response = input(prompt)
         usr_set = usr_response.split(',')
@@ -55,11 +56,13 @@ def get_categorical_input_set_in_range(prompt, categ_set):
             else:
                 invalid_input = "\"" + usr_item + "\""
                 print(f"{invalid_input} is invalid input try again.")
-                print("Common era is extra spaces look closesly at the allowed values and replicate them exactly")
+                print("Common error is extra spaces look closesly at the allowed values and replicate them exactly")
                 usr_response_state = invalid_response_id
                 break
-        if usr_response_state == invalid_response_id:
-            valid_usr_set = []
+        if len(valid_usr_set) == 0:
+            print("Atleast 1 input is required, try again")
+            usr_response_state = invalid_response_id
+        
     return valid_usr_set
     
 
