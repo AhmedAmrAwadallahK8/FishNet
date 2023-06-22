@@ -19,9 +19,13 @@ class CellMeanIntensity(AbstractNode):
         self.cytoplasm_key = "cyto"
         self.nucleus_key = "nuc"
         self.cell_id_mask = None
-        self.csv_name =  "mean_intensity.csv"
+        self.csv_name =  "cell_intensity.csv"
         self.nuc_intensity = {}
         self.cyto_intensity = {}
+        self.nuc_area = {}
+        self.cyto_area = {}
+        self.nuc_intensity_sum = {}
+        self.cyto_intensity_sum = {}
         self.channel_context = {}
         self.z_context = {}
         self.raw_crop_imgs = {}
@@ -119,9 +123,10 @@ class CellMeanIntensity(AbstractNode):
         self.set_node_as_successful()
 
     def store_csv_data(self):
-        for cell_id in self.nuc_intensity.keys():
-            if cell_id in self.cyto_intensity:
-                obs = f"{cell_id},{self.cyto_intensity[cell_id]:.3f},{self.nuc_intensity[cell_id]:.3f},{self.z_context[cell_id]},{self.channel_context[cell_id]}\n"
+        for cell_id in self.nuc_intensity_sum.keys():
+            # if cell_id in self.cyto_intensity:
+                # obs = f"{cell_id},{self.cyto_intensity[cell_id]:.3f},{self.nuc_intensity[cell_id]:.3f},{self.z},{self.c}\n"
+                obs = f"{cell_id},{self.cyto_intensity_sum[cell_id]:.3f},{self.cyto_area[cell_id]:.3f},{self.nuc_intensity_sum[cell_id]:.3f},{self.nuc_area[cell_id]:.3f}{self.z},{self.c}\n"
                 self.csv_data.append(obs)
         
     
@@ -131,7 +136,7 @@ class CellMeanIntensity(AbstractNode):
         # csv of particle counts
         csv_path = FishNet.save_folder + self.csv_name
         csv_file = open(csv_path, "w")
-        csv_file.write("cell_id,cyto_mean_intensity,nuc_mean_intensity,z_level,channel\n")
+        csv_file.write("cell_id,cyto_intensity_sum,cyto_area,nuc_intensity_sum,nuc_area,z_level,channel\n")
         for obs in self.csv_data:
                 csv_file.write(obs)
         csv_file.write("\n")
@@ -163,17 +168,26 @@ class CellMeanIntensity(AbstractNode):
             ymax = int(id_bbox[3])
             img_id_activated = resized_id_activation * self.base_img
             img_crop = img_id_activated[ymin:ymax, xmin:xmax].copy()
-            mean_intensity = self.calc_mean_intensity(img_crop)
+            # mean_intensity = self.calc_mean_intensity(img_crop)
+            area, intensity_sum = self.get_area_and_intensity_sum(img_crop)
             if cell_part == self.cytoplasm_key:
-                self.cyto_intensity[cell_id] = mean_intensity
+                # self.cyto_intensity[cell_id] = mean_intensity
+                self.cyto_area[cell_id] = area
+                self.cyto_intensity_sum[cell_id] = intensity_sum
             elif cell_part == self.nucleus_key:
-                self.nuc_intensity[cell_id] = mean_intensity
-            self.channel_context[cell_id] = self.c
-            self.z_context[cell_id] = self.z
+                # self.nuc_intensity[cell_id] = mean_intensity
+                self.nuc_area[cell_id] = area
+                self.nuc_intensity_sum[cell_id] = intensity_sum
+
+    def get_area_and_intensity_sum(self, img_crop):
+        area = np.sum(np.where(img_crop > 0, 1, 0))
+        intensity_sum = np.sum(img_crop)
+        return area, intensity_sum
 
     def calc_mean_intensity(self, img_crop):
         total_pix = np.sum(np.where(img_crop > 0, 1, 0))
-        mean_intensity = np.sum(img_crop)/total_pix
+        intensity_sum = np.sum(img_crop)
+        mean_intensity = intensity_sum/total_pix
         return mean_intensity
 
     def get_segmentation_bbox(self, single_id_mask):
