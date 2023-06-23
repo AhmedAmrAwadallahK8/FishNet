@@ -13,15 +13,16 @@ class LocalSam():
         self.sam_predictor = None
         self.sam = None
         self.mask_generator = None
+        self.context_img = None
 
     def load_base_model(self):
         if self.base_model_loaded:
             return
-        self.sam = sam_model_registry[self.model_type](self.checkpoint=sam_checkpoint)
+        self.sam = sam_model_registry[self.model_type](checkpoint=self.sam_checkpoint)
         self.sam.to(device=self.device)
         self.base_model_loaded = True
 
-    def setup_auto_mask_gen(self, default_sam_settings):
+    def setup_auto_mask_pred(self, default_sam_settings):
         if not self.base_model_loaded:
             self.load_base_model()
         if self.auto_model_initialized:
@@ -29,7 +30,7 @@ class LocalSam():
         self.mask_generator = SamAutomaticMaskGenerator(model=self.sam, **default_sam_settings)
         self.auto_model_initialized = True
 
-    def setup_augmented_mask(self):
+    def setup_augmented_mask_pred(self):
         if not self.base_model_loaded:
             self.load_base_model()
         if self.augmented_model_initialized:
@@ -37,11 +38,14 @@ class LocalSam():
         self.sam_predictor = SamPredictor(self.sam)
         self.augmented_model_initialized = True
 
-    def get_augmented_mask_pred(self, boxes):
+    def get_augmented_mask_pred(self, raw_boxes):
+        tensor_boxes = torch.tensor(raw_boxes, device=self.device)
+        transformed_boxes = self.sam_predictor.transform.apply_boxes_torch(
+            tensor_boxes, self.context_img.shape[:2])
         masks, _, _ = self.sam_predictor.predict_torch(
             point_coords=None,
             point_labels=None,
-            boxes=boxes,
+            boxes=transformed_boxes,
             multimask_output=False)
         masks = masks.cpu().numpy()
         return masks
@@ -51,4 +55,5 @@ class LocalSam():
         return mask
 
     def set_image_context(self, img):
+        self.context_img = img
         self.sam_predictor.set_image(img)

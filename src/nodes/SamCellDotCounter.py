@@ -19,16 +19,16 @@ class SamCellDotCounter(AbstractNode):
                          requirements=["ManualCellMaskPack"],
                          user_can_retry=False,
                          node_title="Auto SAM Cell Dot Counter")
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        # self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.skip_node = False
         self.save_folder = "particle_segmentations/"
         self.max_pix_area = 1024*1024 #1024*1024
         self.quilt_factor = 1
         self.block_size = 512
         self.base_img = None
-        self.sam_mask_generator = None
-        self.sam = None
-        self.sam_predictor = None
+        # self.sam_mask_generator = None
+        # self.sam = None
+        # self.sam_predictor = None
         self.cyto_id_mask = None
         self.nuc_id_mask = None
         self.cytoplasm_key = "cyto"
@@ -112,10 +112,11 @@ class SamCellDotCounter(AbstractNode):
         self.base_img = ip.preprocess_img2(raw_img)
 
     def setup_sam(self):
-        sam_checkpoint = "sam_model/sam_vit_h_4b8939.pth"
-        model_type = "vit_h"
-        self.sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
-        self.sam.to(device=self.device)
+        from src.fishnet import FishNet
+        # sam_checkpoint = "sam_model/sam_vit_h_4b8939.pth"
+        # model_type = "vit_h"
+        # self.sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
+        # self.sam.to(device=self.device)
         default_sam_settings = {
                     "points_per_side": 32, #32
                     "pred_iou_thresh": 0.5, #0.5
@@ -123,7 +124,8 @@ class SamCellDotCounter(AbstractNode):
                     "crop_n_layers": 0, #1
                     "crop_n_points_downscale_factor": 0, #2
                     "min_mask_region_area": 10 } #1
-        self.mask_generator = SamAutomaticMaskGenerator(model=self.sam, **default_sam_settings)
+        # self.mask_generator = SamAutomaticMaskGenerator(model=self.sam, **default_sam_settings)
+        FishNet.sam_model.setup_auto_mask_pred(default_sam_settings)
 
 
     def initialize_node(self):
@@ -391,7 +393,9 @@ class SamCellDotCounter(AbstractNode):
         return dot_count, restored_seg
 
     def get_dot_count_and_seg_pure(self, img_subset):
-        mask = self.mask_generator.generate(img_subset)
+        from src.fishnet import FishNet
+        # mask = self.mask_generator.generate(img_subset)
+        mask = FishNet.sam_model.get_auto_mask_pred(img_subset)
         mask_img, dot_count = self.process_sam_mask(img_subset, mask)
         seg = ip.generate_single_colored_mask(mask_img)
         return dot_count, seg
@@ -448,11 +452,13 @@ class SamCellDotCounter(AbstractNode):
        #  return img_seq
 
     def get_dot_count_and_seg_seq(self, img_seq):
+        from src.fishnet import FishNet
         seg_seq = []
         total_dot_count = 0
 
         for img in img_seq:
-            masks = self.mask_generator.generate(img)
+            # masks = self.mask_generator.generate(img)
+            masks = FishNet.sam_model.get_auto_mask_pred(img)
             mask_img, dot_counts = self.process_sam_mask(img, masks)
             total_dot_count += dot_counts
             seg = ip.generate_single_colored_mask(mask_img)

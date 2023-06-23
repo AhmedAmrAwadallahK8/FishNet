@@ -401,12 +401,12 @@ class ManualSamCellSegmenter(AbstractNode):
                          requirements=[],
                          user_can_retry=False,
                          node_title="Manual SAM Cell Segmenter")
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        # self.device = "cuda" if torch.cuda.is_available() else "cpu"
         # self.image_size = 1024
         self.targ_pixel_area = 768*768
-        self.sam_mask_generator = None
-        self.sam = None
-        self.sam_predictor = None
+        # self.sam_mask_generator = None
+        # self.sam = None
+        # self.sam_predictor = None
         self.input_boxes = []
         self.input_points = [[0,0]]
         self.input_labels = [0]
@@ -434,23 +434,29 @@ class ManualSamCellSegmenter(AbstractNode):
             self.input_boxes.pop()
 
     def produce_and_store_mask(self, mask_class):
+        from src.fishnet import FishNet
         if np.array_equal(self.prepared_img, self.prev_prepared_img):
             pass
         else:
             self.prev_prepared_img = self.prepared_img.copy()
-            self.sam_predictor.set_image(self.prepared_img)
+            FishNet.sam_model.set_image_context(self.prepared_img)
+            # self.sam_predictor.set_image(self.prepared_img)
         sam_masks = self.apply_sam_pred()
         mask_img =  sp.generate_mask_img_manual(self.prepared_img, sam_masks)
         self.output_pack[mask_class] = mask_img
         
 
     def setup_sam(self):
-        sam_checkpoint = "sam_model/sam_vit_h_4b8939.pth"
-        model_type = "vit_h"
-        self.sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
-        self.sam.to(device=self.device)
-        self.sam_predictor = SamPredictor(self.sam)
-        self.sam_predictor.set_image(self.prepared_img)
+        from src.fishnet import FishNet
+        FishNet.sam_model.setup_augmented_mask_pred()
+        FishNet.sam_model.set_image_context(self.prepared_img)
+        
+        # sam_checkpoint = "sam_model/sam_vit_h_4b8939.pth"
+        # model_type = "vit_h"
+        # self.sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
+        # self.sam.to(device=self.device)
+        # self.sam_predictor = SamPredictor(self.sam)
+        # self.sam_predictor.set_image(self.prepared_img)
 
     def soft_reset(self):
         self.input_boxes = []
@@ -476,6 +482,7 @@ class ManualSamCellSegmenter(AbstractNode):
         return self.segment_img
 
     def process_img(self):
+        from src.fishnet import FishNet
         if len(self.input_boxes) == 0:
             self.curr_img = self.prepared_img.copy()
             self.segment_img = np.zeros(self.prepared_img.shape)
@@ -484,7 +491,8 @@ class ManualSamCellSegmenter(AbstractNode):
             pass
         else:
             self.prev_prepared_img = self.prepared_img.copy()
-            self.sam_predictor.set_image(self.prepared_img)
+            FishNet.sam_model.set_image_context(self.prepared_img)
+            # self.sam_predictor.set_image(self.prepared_img)
         
         sam_masks = self.apply_sam_pred()
             
@@ -497,15 +505,17 @@ class ManualSamCellSegmenter(AbstractNode):
         self.curr_img += contour_img
 
     def apply_sam_pred(self):
-        tensor_boxes = torch.tensor(self.input_boxes, device=self.device)
-        transformed_boxes = self.sam_predictor.transform.apply_boxes_torch(
-            tensor_boxes, self.prepared_img.shape[:2])
-        masks, _, _ = self.sam_predictor.predict_torch(
-            point_coords=None,
-            point_labels=None,
-            boxes=transformed_boxes,
-            multimask_output=False)
-        masks = masks.cpu().numpy()
+        from src.fishnet import FishNet
+        masks = FishNet.sam_model.get_augmented_mask_pred(self.input_boxes)
+        # tensor_boxes = torch.tensor(self.input_boxes, device=self.device)
+        # transformed_boxes = self.sam_predictor.transform.apply_boxes_torch(
+        #     tensor_boxes, self.prepared_img.shape[:2])
+        # masks, _, _ = self.sam_predictor.predict_torch(
+        #     point_coords=None,
+        #     point_labels=None,
+        #     boxes=transformed_boxes,
+        #     multimask_output=False)
+        # masks = masks.cpu().numpy()
         return masks
 
     def get_likely_child_nuc_id(self, nuc_cyto_id_activated):
@@ -667,10 +677,10 @@ class ManualSamCellSegmenter(AbstractNode):
             self.remove_nuclei_with_no_cyto()
             self.remove_cyto_with_no_nuclei() #Has to be after nucleus
             self.reset_id_sequence()
-        del self.sam
-        del self.sam_mask_generator
-        del self.sam_predictor
-        torch.cuda.empty_cache()
+        # del self.sam
+        # del self.sam_mask_generator
+        # del self.sam_predictor
+        # torch.cuda.empty_cache()
         cyto_id_mask = self.output_pack[self.cyto_class]
         cell_count = np.max(cyto_id_mask)
         print(f"Total Valid Cells Found: {cell_count:d}")

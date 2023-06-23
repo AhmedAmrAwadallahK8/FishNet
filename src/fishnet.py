@@ -13,6 +13,7 @@ from src.nodes.ManualSamSegmenter import ManualSamSegmenter
 from src.nodes.ManualSamCellSegmenter import ManualSamCellSegmenter
 from src.nodes.SamCellDotCounter import SamCellDotCounter
 from src.nodes.CellMeanIntensity import CellMeanIntensity
+from src.wrappers.local_sam import LocalSam
 
 # Update such that nodes return success or failure instead of files to store
 # Have abstractnode communicate with fishnet for file storage instead
@@ -29,6 +30,7 @@ class SampleNode():
       return 0
 
 class FishNet():
+   sam_model = LocalSam()
    raw_imgs = []
    channel_meta = {}
    z_meta = 0
