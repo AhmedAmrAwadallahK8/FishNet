@@ -1,6 +1,4 @@
 FINAL TODO
-- SAM object that is initialized on request
-
 - Make independent sam dot coutning script
 - Save mask np files
 

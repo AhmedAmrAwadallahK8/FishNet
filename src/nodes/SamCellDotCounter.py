@@ -20,7 +20,7 @@ class SamCellDotCounter(AbstractNode):
                          user_can_retry=False,
                          node_title="Auto SAM Cell Dot Counter")
         # self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.skip_node = False
+        self.skip_node = True
         self.save_folder = "particle_segmentations/"
         self.max_pix_area = 1024*1024 #1024*1024
         self.quilt_factor = 1
@@ -131,10 +131,10 @@ class SamCellDotCounter(AbstractNode):
     def initialize_node(self):
         prompt = "The Sam Cell Dot Counter Node can take a long time to process"
         prompt += " especially without gpu support.\n"
-        prompt += "Enter yes if you would like to skip this node otherwise enter no: "
+        prompt += "Enter yes if you would like to continue, no to quit: "
         usr_response_id = usr_int.ask_user_for_yes_or_no(prompt)
         if usr_response_id == usr_int.positive_response_id:
-            self.skip_node = True
+            self.skip_node = False
             return
         self.finish_setting_setup()
         self.get_id_mask()
