@@ -1,6 +1,7 @@
 FINAL TODO
-- Make independent sam dot coutning script
 - Save mask np files
+- Make independent sam dot counting script
+
 
 - Low Prio TODO
 - Multi Spectrum Signals

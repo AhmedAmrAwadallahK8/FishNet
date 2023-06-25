@@ -126,7 +126,7 @@ class CellMeanIntensity(AbstractNode):
         for cell_id in self.nuc_intensity_sum.keys():
             # if cell_id in self.cyto_intensity:
                 # obs = f"{cell_id},{self.cyto_intensity[cell_id]:.3f},{self.nuc_intensity[cell_id]:.3f},{self.z},{self.c}\n"
-                obs = f"{cell_id},{self.cyto_intensity_sum[cell_id]:.3f},{self.cyto_area[cell_id]:.3f},{self.nuc_intensity_sum[cell_id]:.3f},{self.nuc_area[cell_id]:.3f}{self.z},{self.c}\n"
+                obs = f"{cell_id},{self.cyto_intensity_sum[cell_id]:.1f},{self.cyto_area[cell_id]:.1f},{self.nuc_intensity_sum[cell_id]:.1f},{self.nuc_area[cell_id]:.1f},{self.z},{sel.c}\n"
                 self.csv_data.append(obs)
         
     

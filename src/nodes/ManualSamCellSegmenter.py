@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import torch
 import torchvision
 import matplotlib.pyplot as plt
@@ -397,6 +398,7 @@ class MSSGui():
 
 class ManualSamCellSegmenter(AbstractNode):
     def __init__(self):
+        from src.fishnet import FishNet
         super().__init__(output_name="ManualCellMaskPack",
                          requirements=[],
                          user_can_retry=False,
@@ -407,6 +409,8 @@ class ManualSamCellSegmenter(AbstractNode):
         # self.sam_mask_generator = None
         # self.sam = None
         # self.sam_predictor = None
+        self.cell_figures_folder = "cell_figures/"
+        self.id_masks_folder = "id_masks/"
         self.input_boxes = []
         self.input_points = [[0,0]]
         self.input_labels = [0]
@@ -420,6 +424,17 @@ class ManualSamCellSegmenter(AbstractNode):
         self.cyto_class = "cytoplasm"
         self.output_pack = {self.nuc_class: None, self.cyto_class: None}
         self.valid_gui_exit = False
+        self.cell_figures_path = FishNet.save_folder + self.cell_figures_folder
+        self.id_mask_path = FishNet.save_folder + self.id_masks_folder
+        self.create_folder(self.cell_figures_folder)
+        self.create_folder(self.id_masks_folder)
+
+    def create_folder(self, folder_name):
+        from src.fishnet import FishNet
+        save_folder = FishNet.save_folder + folder_name
+        if not os.path.exists(save_folder):
+            os.makedirs(save_folder)
+        
 
     def set_valid_gui_exit(self):
         self.valid_gui_exit = True
@@ -747,7 +762,16 @@ class ManualSamCellSegmenter(AbstractNode):
     def plot_output(self):
         pass
 
+    def save_id_masks(self):
+        nuc_id_mask = self.output_pack[self.nuc_class]
+        cyto_id_mask = self.output_pack[self.cyto_class]
+        nuc_id_mask_path = self.id_mask_path + "nuc_id_mask.npy"
+        cyto_id_mask_path = self.id_mask_path + "cyto_id_mask.npy"
+        np.save(nuc_id_mask_path, nuc_id_mask)
+        np.save(cyto_id_mask_path, cyto_id_mask)
+
     def save_output(self):
+        self.save_id_masks()
         base_shape = self.default_size_img.shape
         base_height = base_shape[0]
         base_width = base_shape[1]
@@ -816,10 +840,17 @@ class ManualSamCellSegmenter(AbstractNode):
         
         
 
-        self.save_img(segment_img, "manual_cell_segment.png")
-        self.save_img(segment_overlay, "manual_cell_overlay.png")
-        self.save_img(outline_img, "manual_cell_outline.png")
-        self.save_img(segment_overlay_activated, "manual_cell_overlay_activated.png")
-        self.save_img(outline_activated, "manual_cell_outline_activated.png")
-        self.save_img(nuc_segment_img, "manual_nuc_segment.png")
-        self.save_img(cyto_segment_img, "manual_cyto_segment.png")
+        seg_path = self.cell_figures_folder + "manual_cell_segment.png"
+        self.save_img(segment_img, seg_path)
+        seg_over_path = self.cell_figures_folder + "manual_cell_overlay.png"
+        self.save_img(segment_overlay, seg_over_path)
+        outline_path = self.cell_figures_folder + "manual_cell_outline.png"
+        self.save_img(outline_img, outline_path)
+        seg_over_act_path = self.cell_figures_folder + "manual_cell_overlay_activated.png"
+        self.save_img(segment_overlay_activated, seg_over_act_path)
+        outline_act_path = self.cell_figures_folder + "manual_cell_outline_activated.png"
+        self.save_img(outline_activated, outline_act_path)
+        nuc_seg_path = self.cell_figures_folder + "manual_nuc_segment.png"
+        self.save_img(nuc_segment_img, nuc_seg_path)
+        cyto_seg_path = self.cell_figures_folder + "manual_cyto_segment.png"
+        self.save_img(cyto_segment_img, cyto_seg_path)

@@ -135,6 +135,7 @@ class SamCellDotCounter(AbstractNode):
         usr_response_id = usr_int.ask_user_for_yes_or_no(prompt)
         if usr_response_id == usr_int.positive_response_id:
             self.skip_node = False
+        else:
             return
         self.finish_setting_setup()
         self.get_id_mask()
