@@ -1,5 +1,6 @@
 FINAL TODO
 - Code Commenting
+- Make sure input is an nd2 file
 
 
 - Low Prio TODO

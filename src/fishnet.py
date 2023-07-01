@@ -1,5 +1,4 @@
 from nd2reader import ND2Reader
-import matplotlib.pyplot as plt
 import cv2 as cv
 import numpy as np
 import src.user_interaction as usr_int
@@ -7,57 +6,72 @@ import sys
 import os
 import shutil
 from src.common import TempPipeline
-from src.nodes.SamNucleusSegmenter import SamNucleusSegmenter
-from src.nodes.SimpleNucleusCounter import SimpleNucleusCounter
-from src.nodes.ManualSamSegmenter import ManualSamSegmenter
 from src.nodes.ManualSamCellSegmenter import ManualSamCellSegmenter
 from src.nodes.SamCellDotCounter import SamCellDotCounter
 from src.nodes.CellMeanIntensity import CellMeanIntensity
 from src.wrappers.local_sam import LocalSam
 
-# Update such that nodes return success or failure instead of files to store
-# Have abstractnode communicate with fishnet for file storage instead
-
-
-class SampleNode():
-   def __init__(self):
-      self.output_name = "SampleName"
-
-   def get_output_name(self):
-      return self.output_name
-
-   def process(self):
-      return 0
-
 class FishNet():
+   """
+   Responsible for the overall flow of the program and a global data storage
+   for other objects within the program to communcicate
+
+   Global Attributes:
+      sam_model (LocalSam): Wrapper object for SAM
+      raw_imgs (list): Contains all the nd2 image slices
+      channel_meta (dict): Channel metadata from nd2 file
+      z_meta (dict): Z axis meta data from nd2 file
+      pipeline_output (dict): Global storage for pipeline node output
+      save_folder (str): Output folder name
+
+   Attributes:
+      version (int): Version number of program 
+      valid_file_types (list): List of valid files
+      img_file (str): Path of nd2 file
+      pipeline (TempPipeline): Main pipeline object
+      welcome_message (str): Program welcome message
+      goodbye_message (str): Program goodbye message
+
+   Global Function:
+      store_output(output, out_name): allows objects to request to store data
+      within the pipeline_output global attribute
+
+   Methods:
+      run(): Performs all critical actions of class
+      welcome(): Prints welcome message
+      user_exit(): Prints exit message then terminates program
+      run_pipeline(): Request pipeline to sequential process
+      goodbye(): Prints goodbye message
+      prompt_user_for_file(): Request user to input nd2 file path and stores
+      in img_file attribute
+      extract_img_info(): Extracts nd2 file for all imgs and metadata associated
+      with the z axis and color channels. Stores relevant information in the 
+      raw_imgs, channel_meta, and z_meta attributes
+      
+   """
    sam_model = LocalSam()
    raw_imgs = []
    channel_meta = {}
-   z_meta = 0
+   z_meta = {}
    pipeline_output = {}
    save_folder = "output/"
+
+   def store_output(output, out_name):
+      FishNet.pipeline_output[out_name] = output
+
    def __init__(self):
       if not os.path.exists(FishNet.save_folder):
           os.makedirs(FishNet.save_folder)
       elif os.path.exists(FishNet.save_folder):
           shutil.rmtree(FishNet.save_folder)
           os.makedirs(FishNet.save_folder)
-      self.placeholder = 0
       self.version = 0.01
       self.valid_file_types = ["nd2"]
       self.img_file = ""
-      # self.all_imgs = []
-      # self.nodes = [ManualSamSegmenter()]
-      self.nodes = [ManualSamCellSegmenter(), CellMeanIntensity(), SamCellDotCounter()]
-      self.pipeline = TempPipeline(self.nodes)
-      del self.nodes
-      self.valid_responses = ["yes", "y", "no", "n"]
-      self.negative_responses = ["no", "n"]
-      self.positive_responses = ["yes", "y"]
-
-      self.invalid_response_id = 0
-      self.positive_response_id = 1
-      self.negative_response_id = 2
+      self.pipeline = TempPipeline([
+         ManualSamCellSegmenter(),
+         CellMeanIntensity(),
+         SamCellDotCounter()])
 
       self.welcome_message = f"Welcome to FishNet v{self.version}!"
       self.goodbye_message = f"Thank you for using FishNet! Goodbye."
@@ -78,7 +92,6 @@ class FishNet():
       self.goodbye()
       sys.exit()
    
-   # Assuming that a node outputs exactly what the next node wants
    def run_pipeline(self):
       from src.nodes.AbstractNode import AbstractNode
       pipeline_advanced = True
@@ -86,58 +99,11 @@ class FishNet():
          node_status_code = self.pipeline.run_node()
          if node_status_code == AbstractNode.NODE_FAILURE_CODE:
              self.user_exit() 
-         # Reminder this will break behavior of all previous nodes
-         # if node_output is None: # Likely have to change this
-         #    self.user_exit()
-         # self.store_output(node_output, out_name)
          self.pipeline.advance()
-
-
-   def process_user_input(self, user_input):
-      user_input = user_input.lower()
-      if user_input in self.valid_responses:
-         if user_input in self.positive_responses:
-            return self.positive_response_id
-         elif user_input in self.negative_responses:
-            return self.negative_response_id
-      else:
-         return self.invalid_response_id
-
-
-   def ask_user_to_try_again_or_quit(self):
-      prompt = "Would you like to try this step again?\n"
-      prompt += "If you say no the program will assume you are done and exit. "
-      user_input = input(prompt)
-      response_id = self.process_user_input(user_input)
-      if response_id == self.positive_response_id:
-         return True
-      elif response_id == self.negative_response_id:
-         return False
-
-   def check_if_user_satisified(self):
-      # Display Img
-      prompt = "Are you satisfied with the displayed image"
-      prompt += " for this step? "
-      response_id = self.invalid_response_id
-      while(response_id == self.invalid_response_id):
-         user_input = input(prompt)
-         response_id = self.process_user_input(user_input)
-         if response_id == self.positive_response_id:
-            return True
-         elif response_id == self.negative_response_id:
-            return False
-         elif response_id == self.invalid_response_id:
-            print("Invalid response try again.")
-            print("We expect either yes or no.")
 
    def goodbye(self):
       print(self.goodbye_message)
 
-   def store_output(self, output, out_name):
-      FishNet.pipeline_output[out_name] = output
-
-   def store_output(output, out_name):
-      FishNet.pipeline_output[out_name] = output
 
    def prompt_user_for_file(self):
       self.img_file = input("Input nd2 path: ")
@@ -159,8 +125,6 @@ class FishNet():
          FishNet.z_meta = self.convert_list_to_dict(z_info)
          FishNet.channel_meta = self.convert_list_to_dict(channel_info)
          images.iter_axes = 'zc'
-         # z_stack = int(input("Specify how many z slices: "))
-         # c_stack = int(input("Specify how many experiment channels: "))
          FishNet.raw_imgs = []
          for z in range(z_len):
             FishNet.raw_imgs.append([])
