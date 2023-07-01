@@ -140,7 +140,7 @@ class FishNet():
       FishNet.pipeline_output[out_name] = output
 
    def prompt_user_for_file(self):
-      self.img_file = input("Input file to be processed: ")
+      self.img_file = input("Input nd2 path: ")
 
    def convert_list_to_dict(self, arg_list):
       final_dict = {}

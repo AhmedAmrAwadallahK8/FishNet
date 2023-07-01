@@ -5,6 +5,7 @@ from segment_anything import sam_model_registry, SamAutomaticMaskGenerator, SamP
 class LocalSam():
     def __init__(self):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        # self.device = "cpu"
         self.sam_checkpoint = "sam_model/sam_vit_h_4b8939.pth"
         self.model_type = "vit_h"
         self.base_model_loaded = False

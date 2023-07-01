@@ -89,7 +89,7 @@ class SamCellDotCounter(AbstractNode):
             self.quilt_key: [1,4],
             self.z_key: list(FishNet.z_meta.keys()),
             self.c_key: list(FishNet.channel_meta.keys())}
-        z_descrip = f"Enter all the z axi that you are interested in seperated by commas\n"
+        z_descrip = f"Enter all the z axes that you are interested in seperated by commas\n"
         z_descrip += f"Valid z axi are in {self.setting_range[self.z_key]}."
 
         c_descrip = f"Enter all the channels that you are interested in seperated by commas\n"
@@ -131,6 +131,10 @@ class SamCellDotCounter(AbstractNode):
     def initialize_node(self):
         prompt = "The Sam Cell Dot Counter Node can take a long time to process"
         prompt += " especially without gpu support.\n"
+        if torch.cuda.is_available():
+            prompt += "Currently you have gpu support.\n"
+        else:
+            prompt += "Currently you do not have gpu support.\n"
         prompt += "Enter yes if you would like to continue, no to quit: "
         usr_response_id = usr_int.ask_user_for_yes_or_no(prompt)
         if usr_response_id == usr_int.positive_response_id:
