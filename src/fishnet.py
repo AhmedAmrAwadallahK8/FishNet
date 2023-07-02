@@ -57,6 +57,18 @@ class FishNet():
    save_folder = "output/"
 
    def store_output(output, out_name):
+      """
+      Takes in a key and value and stores it within the global pipeline_output 
+      dictionary. Only used by nodes to store output if they information
+      other nodes would find useful.
+
+      Args:
+         output (any): Useful node output
+         out_name (str): Key to reference the node output
+      
+      Returns:
+         Nothing
+      """
       FishNet.pipeline_output[out_name] = output
 
    def __init__(self):
@@ -78,6 +90,15 @@ class FishNet():
 
 
    def run(self):
+      """
+      Runs all critical steps of the program
+      
+      Args:
+         Nothing
+
+      Returns:
+         Nothing
+      """
       self.welcome()
       self.prompt_user_for_file()
       self.extract_img_info()
@@ -85,14 +106,43 @@ class FishNet():
       self.goodbye()
 
    def welcome(self):
+      """
+      Prints the welcome message
+      
+      Args:
+         Nothing
+
+      Returns:
+         Nothing
+      """
       print(self.welcome_message)
 
    def user_exit(self):
+      """
+      Unique program exit path that occurs when a node reports it failed to
+      complete its expected work
+      
+      Args:
+         Nothing
+
+      Returns:
+         Nothing
+      """
       print("An exit input was recieved, program will now terminate.")
       self.goodbye()
       sys.exit()
    
    def run_pipeline(self):
+      """
+      Iteratively passes through the pipeline and checks nodes for satisfactory
+      completition. If node failed to complete it will call user_exit
+      
+      Args:
+         Nothing
+
+      Returns:
+         Nothing
+      """
       from src.nodes.AbstractNode import AbstractNode
       pipeline_advanced = True
       while(self.pipeline.is_not_finished()):
@@ -102,13 +152,41 @@ class FishNet():
          self.pipeline.advance()
 
    def goodbye(self):
+      """
+      Prints goodbye message
+      
+      Args:
+         Nothing
+
+      Returns:
+         Nothing
+      """
       print(self.goodbye_message)
 
 
    def prompt_user_for_file(self):
+      """
+      Asks user for the nd2 file path and stores within img_file
+      
+      Args:
+         Nothing
+
+      Returns:
+         Nothing
+      """
       self.img_file = input("Input nd2 path: ")
 
    def convert_list_to_dict(self, arg_list):
+      """
+      Converts a list of values into a dictionary where the list values become
+      the values of the dictionary and the list index becomes the key
+      
+      Args:
+         arg_list (list): list of values
+
+      Returns:
+         dict: dictionary representation of the list
+      """
       final_dict = {}
       for i in range(len(arg_list)):
          k = arg_list[i]
@@ -116,6 +194,16 @@ class FishNet():
       return final_dict
 
    def extract_img_info(self):
+      """
+      Extracts information from the nd2 file. Specifically all z axis 
+      and color channel images as well as relevant metadata.
+      
+      Args:
+         Nothing
+
+      Returns:
+         Nothing
+      """
       with ND2Reader(self.img_file) as images: 
          channel_info = images.metadata["channels"]
          z_len = len(images.metadata["z_levels"])
