@@ -49,6 +49,7 @@ class FishNet():
       raw_imgs, channel_meta, and z_meta attributes
       
    """
+
    sam_model = LocalSam()
    raw_imgs = []
    channel_meta = {}
