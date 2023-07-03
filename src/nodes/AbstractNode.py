@@ -38,7 +38,7 @@ class AbstractNode:
         output_pack (any): The type of this depends on how a node stores its
         output. It would be the value stored to the ouput_name key.
 
-    Global Function:
+    Global Functions:
 
     Methods:
         run(): Performs all critical general functions of a node
