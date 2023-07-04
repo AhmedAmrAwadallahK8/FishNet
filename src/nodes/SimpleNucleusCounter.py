@@ -5,6 +5,9 @@ import src.user_interaction as usr_int
 import src.image_processing as ip
 from src.nodes.AbstractNode import AbstractNode
 
+"""
+This file is not used in FishNet
+"""
 
 
 

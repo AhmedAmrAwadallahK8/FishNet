@@ -1,5 +1,9 @@
 from src.nodes.AbstractNode import AbstractNode
 
+"""
+This file is not used in FishNet
+"""
+
 class CellAnalysisNode(AbstractNode):
     def __init__(self):
         from src.fishnet import FishNet

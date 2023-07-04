@@ -12,6 +12,10 @@ import src.image_processing as ip
 import src.sam_processing as sp
 from PIL import Image, ImageTk
 
+"""
+This file is not used in FishNet
+"""
+
 class RectTracker:
     def __init__(self, canvas, gui):
         self.canvas = canvas

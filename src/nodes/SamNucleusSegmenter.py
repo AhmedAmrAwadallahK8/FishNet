@@ -8,6 +8,10 @@ from src.nodes.AbstractNode import AbstractNode
 from nd2reader import ND2Reader
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator, SamPredictor
 
+"""
+This file is not used in FishNet
+"""
+
 class InvalidChannelError(Exception):
     def __init__(self):
         msg = "Input channel id is either larger than the channels present "
