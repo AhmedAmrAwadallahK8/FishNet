@@ -3,9 +3,37 @@ import torchvision
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator, SamPredictor
 
 class LocalSam():
+    """
+    A wrapper class for expected SAM functionality
+
+    Global Variables:
+        Nothing
+
+    Global Function:
+        Nothing
+
+    Attributes:
+        device (str):
+        sam_checkpoint (str):
+        model_type (str):
+        base_model_loaded (boolean):
+        augmented_model_initialized (boolean):
+        auto_model_initialized (boolean):
+        sam_predictor (SamPredictor):
+        sam (pytorch_tensor?):
+        mask_generator (SamAutomaticMaskGenerator): 
+        context_img (ndarray): 
+
+    Methods:
+        load_base_model():
+        setup_auto_mask_pred(default_sam_settings):
+        setup_augmented_mask_pred():
+        get_augmented_mask_pred(raw_boxes):
+        get_auto_mask_pred(img):
+        set_image_context(img):
+    """
     def __init__(self):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        # self.device = "cpu"
         self.sam_checkpoint = "sam_model/sam_vit_h_4b8939.pth"
         self.model_type = "vit_h"
         self.base_model_loaded = False
@@ -17,6 +45,12 @@ class LocalSam():
         self.context_img = None
 
     def load_base_model(self):
+        """
+
+        Args:
+
+        Returns:
+        """
         if self.base_model_loaded:
             return
         self.sam = sam_model_registry[self.model_type](checkpoint=self.sam_checkpoint)
@@ -24,6 +58,12 @@ class LocalSam():
         self.base_model_loaded = True
 
     def setup_auto_mask_pred(self, default_sam_settings):
+        """
+
+        Args:
+
+        Returns:
+        """
         if not self.base_model_loaded:
             self.load_base_model()
         if self.auto_model_initialized:
@@ -32,6 +72,12 @@ class LocalSam():
         self.auto_model_initialized = True
 
     def setup_augmented_mask_pred(self):
+        """
+
+        Args:
+
+        Returns:
+        """
         if not self.base_model_loaded:
             self.load_base_model()
         if self.augmented_model_initialized:
@@ -40,6 +86,12 @@ class LocalSam():
         self.augmented_model_initialized = True
 
     def get_augmented_mask_pred(self, raw_boxes):
+        """
+
+        Args:
+
+        Returns:
+        """
         tensor_boxes = torch.tensor(raw_boxes, device=self.device)
         transformed_boxes = self.sam_predictor.transform.apply_boxes_torch(
             tensor_boxes, self.context_img.shape[:2])
@@ -52,9 +104,21 @@ class LocalSam():
         return masks
 
     def get_auto_mask_pred(self, img):
+        """
+
+        Args:
+
+        Returns:
+        """
         mask = self.mask_generator.generate(img)
         return mask
 
     def set_image_context(self, img):
+        """
+
+        Args:
+
+        Returns:
+        """
         self.context_img = img
         self.sam_predictor.set_image(img)
