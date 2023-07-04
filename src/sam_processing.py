@@ -1,6 +1,11 @@
 import cv2
 import numpy as np
 
+"""
+Contains various functions that transforms SAM output into an intermediate
+data state
+"""
+
 def generate_mask_img(base_img, masks):
     """
     Takes in pure SAM masks and, using the base image as a shape context, 

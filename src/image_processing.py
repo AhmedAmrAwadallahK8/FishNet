@@ -1,6 +1,10 @@
 import cv2
 import numpy as np
 
+"""
+Contains various functions associated with processing image data
+"""
+
 class InvalidChannelError(Exception):
     """
     Error associated to when a selected channel is not within the boundaries

@@ -1,5 +1,13 @@
 import cv2 as cv
 
+"""
+Contains various functions associated with loading files. Currently just
+supports image loading of jpg and pngs.
+
+Global Variables:
+    supported_img_files: set of supported extensions
+"""
+
 supported_img_files = ["jpg", "png"]
 
 def process_img_type(img, ext):
