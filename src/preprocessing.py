@@ -2,6 +2,10 @@ import cv2
 import numpy as np 
 from .common import Node 
 
+"""
+This file is not used by FishNet
+"""
+
 class SelectChannel(Node):
     def __init__(self, channel):
         self.channel = channel

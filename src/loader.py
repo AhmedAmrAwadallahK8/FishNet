@@ -3,6 +3,11 @@ import cv2
 import nd2
 import uuid
 import numpy as np 
+
+"""
+This file is not used directly by FishNet
+"""
+
 # from .common import Node
 
 # VALID_EXTENSIONS = [".tif", ".nd2"]
