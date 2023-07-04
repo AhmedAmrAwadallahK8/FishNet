@@ -9,6 +9,10 @@ import urllib.request
 from .loader import Node, ImageContainer
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator, SamPredictor
 
+"""
+This file is not actively used by FishNet
+"""
+
 
 def show_anns(anns):
     if len(anns) == 0:

@@ -3,6 +3,10 @@ import cv2
 import numpy as np
 from .loader import Node, ImageContainer
 
+"""
+Not currently used in FishNet
+"""
+
 def load_lut(filename):
     """Loads a LUT color map in RGB format."""
 

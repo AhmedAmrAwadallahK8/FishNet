@@ -16,13 +16,17 @@ class FishNet():
    Responsible for the overall flow of the program and a global data storage
    for other objects within the program to communcicate
 
-   Global Attributes:
+   Global Variables:
       sam_model (LocalSam): Wrapper object for SAM
       raw_imgs (list): Contains all the nd2 image slices
       channel_meta (dict): Channel metadata from nd2 file
       z_meta (dict): Z axis meta data from nd2 file
       pipeline_output (dict): Global storage for pipeline node output
       save_folder (str): Output folder name
+
+   Global Function:
+      store_output(output, out_name): allows objects to request to store data
+      within the pipeline_output global attribute
 
    Attributes:
       version (int): Version number of program 
@@ -31,10 +35,6 @@ class FishNet():
       pipeline (TempPipeline): Main pipeline object
       welcome_message (str): Program welcome message
       goodbye_message (str): Program goodbye message
-
-   Global Function:
-      store_output(output, out_name): allows objects to request to store data
-      within the pipeline_output global attribute
 
    Methods:
       run(): Performs all critical actions of class
