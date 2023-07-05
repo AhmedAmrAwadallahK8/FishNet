@@ -7,6 +7,8 @@ import src.user_interaction as usr_int
 import os
 
 class CellMeanIntensity(AbstractNode):
+    """
+    """
     def __init__(self):
         from src.fishnet import FishNet
         super().__init__(output_name="CellMeanIntensityPack",
@@ -57,7 +59,9 @@ class CellMeanIntensity(AbstractNode):
             msg = f"Input a value for {setting}: "
             setting_range = self.setting_range[setting]
             if self.setting_type[setting] == "categ":
-                user_setting = usr_int.get_categorical_input_set_in_range(msg, setting_range)
+                user_setting = usr_int.get_categorical_input_set_in_range(
+                    msg,
+                    setting_range)
             self.user_settings[setting] = user_setting
             print("")
 
@@ -66,10 +70,12 @@ class CellMeanIntensity(AbstractNode):
         self.setting_range = {
             self.z_key: list(FishNet.z_meta.keys()),
             self.c_key: list(FishNet.channel_meta.keys())}
-        z_descrip = f"Enter all the z axi that you are interested in seperated by commas\n"
+        z_descrip = f"Enter all the z axi that you are interested "
+        z_descrip += f"in seperated by commas\n"
         z_descrip += f"Valid z axi are in {self.setting_range[self.z_key]}."
 
-        c_descrip = f"Enter all the channels that you are interested in seperated by commas\n"
+        c_descrip = f"Enter all the channels that you are interested "
+        c_descrip += f"in seperated by commas\n"
         c_descrip += f"Valid channels are in {self.setting_range[self.c_key]}."
         self.setting_description = {
             self.z_key: z_descrip,
@@ -77,8 +83,6 @@ class CellMeanIntensity(AbstractNode):
         
 
     def initialize_node(self):
-        # raw_img = ip.get_all_mrna_img()
-        # self.base_img = raw_img.copy()
         self.finish_setting_setup()
         self.get_id_mask()
         self.get_setting_selections_from_user()
@@ -124,26 +128,26 @@ class CellMeanIntensity(AbstractNode):
 
     def store_csv_data(self):
         for cell_id in self.nuc_intensity_sum.keys():
-            # if cell_id in self.cyto_intensity:
-                # obs = f"{cell_id},{self.cyto_intensity[cell_id]:.3f},{self.nuc_intensity[cell_id]:.3f},{self.z},{self.c}\n"
-                obs = f"{cell_id},{self.cyto_intensity_sum[cell_id]:.1f},{self.cyto_area[cell_id]:.1f},{self.nuc_intensity_sum[cell_id]:.1f},{self.nuc_area[cell_id]:.1f},{self.z},{self.c}\n"
-                self.csv_data.append(obs)
-        
-    
+            obs = f"{cell_id},{self.cyto_intensity_sum[cell_id]:.1f},"
+            obs += f"{self.cyto_area[cell_id]:.1f},"
+            obs += f"{self.nuc_intensity_sum[cell_id]:.1f},"
+            obs += f"{self.nuc_area[cell_id]:.1f},{self.z},{self.c}\n"
+            self.csv_data.append(obs)
 
     def save_csv(self):
         from src.fishnet import FishNet
         # csv of particle counts
         csv_path = FishNet.save_folder + self.csv_name
         csv_file = open(csv_path, "w")
-        csv_file.write("cell_id,cyto_intensity_sum,cyto_area,nuc_intensity_sum,nuc_area,z_level,channel\n")
+        csv_header = "cell_id,cyto_intensity_sum,cyto_area,nuc_intensity_sum,"
+        csv_header += "nuc_area,z_level,channel\n"
+        csv_file.write(csv_header)
         for obs in self.csv_data:
                 csv_file.write(obs)
         csv_file.write("\n")
         csv_file.close()
 
     def process_cell_part(self, cell_part):
-        # print(f"Processing {cell_part}...")
         id_mask = self.cell_id_mask[cell_part]
         cell_ids = np.unique(id_mask)
         for cell_id in cell_ids:
@@ -168,14 +172,11 @@ class CellMeanIntensity(AbstractNode):
             ymax = int(id_bbox[3])
             img_id_activated = resized_id_activation * self.base_img
             img_crop = img_id_activated[ymin:ymax, xmin:xmax].copy()
-            # mean_intensity = self.calc_mean_intensity(img_crop)
             area, intensity_sum = self.get_area_and_intensity_sum(img_crop)
             if cell_part == self.cytoplasm_key:
-                # self.cyto_intensity[cell_id] = mean_intensity
                 self.cyto_area[cell_id] = area
                 self.cyto_intensity_sum[cell_id] = intensity_sum
             elif cell_part == self.nucleus_key:
-                # self.nuc_intensity[cell_id] = mean_intensity
                 self.nuc_area[cell_id] = area
                 self.nuc_intensity_sum[cell_id] = intensity_sum
 
@@ -192,7 +193,10 @@ class CellMeanIntensity(AbstractNode):
 
     def get_segmentation_bbox(self, single_id_mask):
         gray = single_id_mask[:, :, np.newaxis].astype(np.uint8)
-        contours, hierarchy = cv2.findContours(gray,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)[-2:]
+        contours, hierarchy = cv2.findContours(
+            gray,
+            cv2.RETR_LIST,
+            cv2.CHAIN_APPROX_SIMPLE)[-2:]
         idx =0 
         rois = []
         largest_area = 0
