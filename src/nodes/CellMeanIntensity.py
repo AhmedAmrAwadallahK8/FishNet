@@ -42,20 +42,20 @@ class CellMeanIntensity(AbstractNode):
         setting_description (dict): description of setting given to user 
         prior to asking for input
     Methods:
+        process(): performs all critical actions of this node
+        process_cell_part(cell_part): processes a cell part
+        initialize_node(): does all important runtime setup prior to running
+        this node
         get_setting_selections_from_user(): input loop to get desired settings
         from user
         finish_setting_setup(): setup step that can only occur at run time of
         node
-        initialize_node(): does all important runtime setup prior to running
-        this node
         get_id_mask(): gets id mask from FishNet
         save_output(): writes important output to disk
         update_context_img(): updates the context image that is being 
         processed
-        process(): performs all critical actions of this node
         store_csv_data(): locally stores csv structured data
         save_csv(): writes csv data to disk
-        process_cell_part(cell_part): processes a cell part
         get_area_and_intensity_sum(img_crop): returns the area and intensity
         sum of the given crop
         get_segmentation_bbox(single_id_mask): returns bounding box around
@@ -96,6 +96,93 @@ class CellMeanIntensity(AbstractNode):
         self.setting_range = {}
         self.setting_description = {}
 
+    def process(self):
+        """
+        Performs all critical actions of this node. This pertains to going 
+        through each cell at each z and channel index combination and retrieving
+        the pixel area and intensity sum.
+
+        Args:
+            Nothing
+
+        Returns:
+            Nothing
+        """
+        print(f"Percent Done: 0.00%")
+        process_count = 0 
+        total_count = len(self.user_settings[self.z_key])
+        total_count *= len(self.user_settings[self.c_key])
+        for z_axis in self.user_settings[self.z_key]:
+            for c_axis in self.user_settings[self.c_key]:
+                process_count += 1
+                self.z = z_axis
+                self.c = c_axis
+                self.update_context_img()
+                self.process_cell_part(self.cytoplasm_key)
+                self.process_cell_part(self.nucleus_key)
+                self.store_csv_data()
+                percent_done = process_count/total_count*100
+                print(f"Percent Done: {percent_done:.2f}%")
+        self.set_node_as_successful()
+
+    def process_cell_part(self, cell_part):
+        """
+        Processes a specific cell part(nucleus or cytoplasm). This involves
+        isolating the cell part then getting and storing its intensity sum
+        and area.
+
+        Args:
+            cell_part (str): specifies part of cell being processed
+
+        Returns:
+            Nothing
+        """
+        id_mask = self.cell_id_mask[cell_part]
+        cell_ids = np.unique(id_mask)
+        for cell_id in cell_ids:
+            if cell_id == 0 or cell_id > self.max_cell_id:
+                continue
+
+            targ_shape = self.base_img.shape
+            id_activation = np.where(id_mask == cell_id, 1, 0)
+            resized_id_activation = ip.resize_img(
+                id_activation,
+                targ_shape[0],
+                targ_shape[1],
+                inter_type="linear")
+            id_bbox = self.get_segmentation_bbox(id_activation)
+            id_bbox = ip.rescale_boxes(
+                [id_bbox],
+                id_activation.shape,
+                self.base_img.shape)[0]
+            xmin = int(id_bbox[0])
+            xmax = int(id_bbox[2])
+            ymin = int(id_bbox[1])
+            ymax = int(id_bbox[3])
+            img_id_activated = resized_id_activation * self.base_img
+            img_crop = img_id_activated[ymin:ymax, xmin:xmax].copy()
+            area, intensity_sum = self.get_area_and_intensity_sum(img_crop)
+            if cell_part == self.cytoplasm_key:
+                self.cyto_area[cell_id] = area
+                self.cyto_intensity_sum[cell_id] = intensity_sum
+            elif cell_part == self.nucleus_key:
+                self.nuc_area[cell_id] = area
+                self.nuc_intensity_sum[cell_id] = intensity_sum
+
+    def initialize_node(self):
+        """
+        Performs all critical functions related to initializing this node.
+        This involves get mask ids and getting setting selections from user
+
+        Args:
+            Nothing
+
+        Returns:
+            Nothing
+        """
+        self.finish_setting_setup()
+        self.get_id_mask()
+        self.get_setting_selections_from_user()
 
     def get_setting_selections_from_user(self):
         """
@@ -147,22 +234,6 @@ class CellMeanIntensity(AbstractNode):
         self.setting_description = {
             self.z_key: z_descrip,
             self.c_key: c_descrip}
-        
-
-    def initialize_node(self):
-        """
-        Performs all critical functions related to initializing this node.
-        This involves get mask ids and getting setting selections from user
-
-        Args:
-            Nothing
-
-        Returns:
-            Nothing
-        """
-        self.finish_setting_setup()
-        self.get_id_mask()
-        self.get_setting_selections_from_user()
 
     def get_id_mask(self):
         """
@@ -184,7 +255,6 @@ class CellMeanIntensity(AbstractNode):
             self.nucleus_key: self.nuc_id_mask
         }
         self.max_cell_id = np.max(self.cyto_id_mask)
-        
 
     def save_output(self):
         """
@@ -212,34 +282,6 @@ class CellMeanIntensity(AbstractNode):
         z_ind = FishNet.z_meta[self.z]
         self.base_img = ip.get_specified_channel_combo_img([c_ind], [z_ind])
 
-    def process(self):
-        """
-        Performs all critical actions of this node. This pertains to going 
-        through each cell at each z and channel index combination and retrieving
-        the pixel area and intensity sum.
-
-        Args:
-            Nothing
-
-        Returns:
-            Nothing
-        """
-        print(f"Percent Done: 0.00%")
-        process_count = 0 
-        total_count = len(self.user_settings[self.z_key])
-        total_count *= len(self.user_settings[self.c_key])
-        for z_axis in self.user_settings[self.z_key]:
-            for c_axis in self.user_settings[self.c_key]:
-                process_count += 1
-                self.z = z_axis
-                self.c = c_axis
-                self.update_context_img()
-                self.process_cell_part(self.cytoplasm_key)
-                self.process_cell_part(self.nucleus_key)
-                self.store_csv_data()
-                percent_done = process_count/total_count*100
-                print(f"Percent Done: {percent_done:.2f}%")
-        self.set_node_as_successful()
 
     def store_csv_data(self):
         """
@@ -280,49 +322,6 @@ class CellMeanIntensity(AbstractNode):
         csv_file.write("\n")
         csv_file.close()
 
-    def process_cell_part(self, cell_part):
-        """
-        Processes a specific cell part(nucleus or cytoplasm). This involves
-        isolating the cell part then getting and storing its intensity sum
-        and area.
-
-        Args:
-            cell_part (str): specifies part of cell being processed
-
-        Returns:
-            Nothing
-        """
-        id_mask = self.cell_id_mask[cell_part]
-        cell_ids = np.unique(id_mask)
-        for cell_id in cell_ids:
-            if cell_id == 0 or cell_id > self.max_cell_id:
-                continue
-
-            targ_shape = self.base_img.shape
-            id_activation = np.where(id_mask == cell_id, 1, 0)
-            resized_id_activation = ip.resize_img(
-                id_activation,
-                targ_shape[0],
-                targ_shape[1],
-                inter_type="linear")
-            id_bbox = self.get_segmentation_bbox(id_activation)
-            id_bbox = ip.rescale_boxes(
-                [id_bbox],
-                id_activation.shape,
-                self.base_img.shape)[0]
-            xmin = int(id_bbox[0])
-            xmax = int(id_bbox[2])
-            ymin = int(id_bbox[1])
-            ymax = int(id_bbox[3])
-            img_id_activated = resized_id_activation * self.base_img
-            img_crop = img_id_activated[ymin:ymax, xmin:xmax].copy()
-            area, intensity_sum = self.get_area_and_intensity_sum(img_crop)
-            if cell_part == self.cytoplasm_key:
-                self.cyto_area[cell_id] = area
-                self.cyto_intensity_sum[cell_id] = intensity_sum
-            elif cell_part == self.nucleus_key:
-                self.nuc_area[cell_id] = area
-                self.nuc_intensity_sum[cell_id] = intensity_sum
 
     def get_area_and_intensity_sum(self, img_crop):
         """
