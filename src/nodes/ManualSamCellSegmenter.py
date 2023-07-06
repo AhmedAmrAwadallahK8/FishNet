@@ -22,6 +22,13 @@ Contains Key cytoplasm which contains cytoplasm mask id data
 """
 
 class ManualSamCellSegmenter(AbstractNode):
+    """
+
+    Global Variables:
+    Global Functions:
+    Attributes:
+    Methods:
+    """
     def __init__(self):
         from src.fishnet import FishNet
         super().__init__(output_name="ManualCellMaskPack",
@@ -48,6 +55,38 @@ class ManualSamCellSegmenter(AbstractNode):
         self.id_mask_path = FishNet.save_folder + self.id_masks_folder
         self.create_folder(self.cell_figures_folder)
         self.create_folder(self.id_masks_folder)
+
+    def process(self):
+        self.gui.run()
+        if self.valid_gui_exit:
+            self.set_node_as_successful()
+            stitch_compelete = self.stitch_cells()
+            self.remove_nucleus_from_cytoplasm_mask(stitch_compelete)
+            self.remove_nuclei_with_no_cyto()
+            self.remove_cyto_with_no_nuclei() #Has to be after nucleus
+            self.reset_id_sequence()
+            cyto_id_mask = self.output_pack[self.cyto_class]
+            cell_count = np.max(cyto_id_mask)
+            print(f"Total Valid Cells Found: {cell_count:d}")
+
+    def initialize_node(self):
+        zero_img = ip.get_zerod_img()
+        zero_img = zero_img[:, :, np.newaxis]
+        raw_img = zero_img.copy()
+        raw_img = np.append(raw_img, zero_img, axis=2)
+        raw_img = np.append(raw_img, zero_img, axis=2)
+        self.prepared_img = raw_img.copy()
+        self.default_size_img = self.prepared_img.copy()
+        self.prepared_img = ip.resize_img_to_pixel_size(
+            self.prepared_img,
+            self.targ_pixel_area)
+        self.curr_img = self.prepared_img.copy()
+        self.segment_img = np.zeros(self.prepared_img.shape)
+        canv_height, canv_width, _=self.prepared_img.shape
+        self.gui = MSSGui(self, canv_height, canv_width)
+        self.gui.update_img(self.prepared_img)
+        self.setup_sam()
+
 
     def create_folder(self, folder_name):
         from src.fishnet import FishNet
@@ -277,23 +316,6 @@ class ManualSamCellSegmenter(AbstractNode):
         self.output_pack[self.cyto_class] = updated_cyto_id_mask
         self.output_pack[self.nuc_class] = updated_nuc_id_mask
 
-    def process(self):
-        self.gui.run()
-        if self.valid_gui_exit:
-            self.set_node_as_successful()
-            stitch_compelete = self.stitch_cells()
-            self.remove_nucleus_from_cytoplasm_mask(stitch_compelete)
-            self.remove_nuclei_with_no_cyto()
-            self.remove_cyto_with_no_nuclei() #Has to be after nucleus
-            self.reset_id_sequence()
-        cyto_id_mask = self.output_pack[self.cyto_class]
-        cell_count = np.max(cyto_id_mask)
-        print(f"Total Valid Cells Found: {cell_count:d}")
-        
-
-    def hello_world(self):
-        print("Hello World")
-
     def translate_state_into_index(self, state_dict, ind_dict):
         ind_list = []
         for state_k in state_dict.keys():
@@ -324,25 +346,6 @@ class ManualSamCellSegmenter(AbstractNode):
             self.targ_pixel_area)
         self.curr_img = self.prepared_img.copy()
         self.segment_img = np.zeros(self.prepared_img.shape)
-        
-
-    def initialize_node(self):
-        zero_img = ip.get_zerod_img()
-        zero_img = zero_img[:, :, np.newaxis]
-        raw_img = zero_img.copy()
-        raw_img = np.append(raw_img, zero_img, axis=2)
-        raw_img = np.append(raw_img, zero_img, axis=2)
-        self.prepared_img = raw_img.copy()
-        self.default_size_img = self.prepared_img.copy()
-        self.prepared_img = ip.resize_img_to_pixel_size(
-            self.prepared_img,
-            self.targ_pixel_area)
-        self.curr_img = self.prepared_img.copy()
-        self.segment_img = np.zeros(self.prepared_img.shape)
-        canv_height, canv_width, _=self.prepared_img.shape
-        self.gui = MSSGui(self, canv_height, canv_width)
-        self.gui.update_img(self.prepared_img)
-        self.setup_sam()
 
     def plot_output(self):
         pass
@@ -455,6 +458,13 @@ class ManualSamCellSegmenter(AbstractNode):
         self.save_img(cyto_segment_img, cyto_seg_path)
 
 class MSSGui():
+    """
+
+    Global Variables:
+    Global Functions:
+    Attributes:
+    Methods:
+    """
     def __init__(self, owner, canv_height, canv_width):
         from src.fishnet import FishNet
         self.channel_states = {}
@@ -725,26 +735,30 @@ class MSSGui():
                 self.canvas.itemconfig(sub_rect, outline='red')
 
 class RectTracker:
+    """
+
+    Global Variables:
+    Global Functions:
+    Attributes:
+        canvas (Tkinter Canvas): 
+        gui (Tkinter GUI):
+        box_tag (str): tag class of box
+        item (int): tkinter identifier for item
+        box (list): box coordinates
+    Methods:
+        __update(event):
+        __stop(event):
+        draw(start, end): 
+        autodraw(): 
+        get_box(start, end):
+        mouse_hit_test(pos): 
+    """
     def __init__(self, canvas, gui, box_tag):
         self.canvas = canvas
-        self.rect_count = 1
         self.gui = gui
         self.box_tag = box_tag
         self.item = None
         self.box = None
-        self.boxes = []
-		
-    def draw(self, start, end, **opts):
-        return self.canvas.create_rectangle(*(list(start)+list(end)), **opts)
-		
-    def autodraw(self, **opts):
-        """Setup automatic drawing; supports command option"""
-        self.start = None
-        self.canvas.bind("<Button-1>", self.__update, '+')
-        self.canvas.bind("<B1-Motion>", self.__update, '+')
-        self.canvas.bind("<ButtonRelease-1>", self.__stop, '+')
-        self._command = opts.pop('command', lambda *args: None)
-        self.rectopts = opts
 
     def __update(self, event):
         if not self.start:
@@ -762,9 +776,18 @@ class RectTracker:
     def __stop(self, event):
         self.start = None
         self.item = None
-
-    def give_final_box(self):
-        pass
+		
+    def draw(self, start, end, **opts):
+        return self.canvas.create_rectangle(*(list(start)+list(end)), **opts)
+		
+    def autodraw(self, **opts):
+        """Setup automatic drawing; supports command option"""
+        self.start = None
+        self.canvas.bind("<Button-1>", self.__update, '+')
+        self.canvas.bind("<B1-Motion>", self.__update, '+')
+        self.canvas.bind("<ButtonRelease-1>", self.__stop, '+')
+        self._command = opts.pop('command', lambda *args: None)
+        self.rectopts = opts
 	
     def get_box(self, start, end, tags=None, ignoretags=None, ignore=[]):
         xlow = min(start[0], end[0])
@@ -824,3 +847,6 @@ class RectTracker:
                     smallest_item = item
                     smallest_area = curr_area
         return smallest_item
+
+    def give_final_box(self):
+        pass
