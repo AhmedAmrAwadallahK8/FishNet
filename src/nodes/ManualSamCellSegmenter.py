@@ -111,13 +111,17 @@ class ManualSamCellSegmenter(AbstractNode):
 
     def process(self):
         """
-        a
+        Runs the GUI and then when all GUI stages are complete it
+        processes the raw segmentations to output segmentations of cells
+        where each cytoplasm has one nucleus. Nuclei and cytoplasms without
+        this pairing are all removed and the output is saved and written
+        to disk
 
         Args:
-            a
+            Nothing
 
         Returns:
-            a
+            Nothing
         """
         self.gui.run()
         if self.valid_gui_exit:
@@ -133,13 +137,14 @@ class ManualSamCellSegmenter(AbstractNode):
 
     def initialize_node(self):
         """
-        a
+        Initializes all image states to be blank and initializes the GUI
+        object.
 
         Args:
-            a
+            Nothing
 
         Returns:
-            a
+            Nothing
         """
         zero_img = ip.get_zerod_img()
         zero_img = zero_img[:, :, np.newaxis]
@@ -161,13 +166,14 @@ class ManualSamCellSegmenter(AbstractNode):
 
     def create_folder(self, folder_name):
         """
-        a
+        Given a folder path makes a folder under the overall FishNet folder
+        root
 
         Args:
-            a
+            Nothing
 
         Returns:
-            a
+            Nothing
         """
         from src.fishnet import FishNet
         save_folder = FishNet.save_folder + folder_name
@@ -176,25 +182,25 @@ class ManualSamCellSegmenter(AbstractNode):
 
     def set_valid_gui_exit(self):
         """
-        a
+        Informs this object that the GUI had a valid exit
 
         Args:
-            a
+            Nothing
 
         Returns:
-            a
+            Nothing
         """
         self.valid_gui_exit = True
 
     def get_nuc_seg(self):
         """
-        a
+        Using a nucleus id mask outputs a nucleus segmentation image
 
         Args:
-            a
+            Nothing
 
         Returns:
-            a
+            ndarray: nucleus segmentation
         """
         nuc_id_mask = self.output_pack[self.nuc_class]
         nuc_seg = ip.generate_single_colored_mask(nuc_id_mask, color=(0, 0, 255))
@@ -202,26 +208,29 @@ class ManualSamCellSegmenter(AbstractNode):
 
     def pop_boxes(self):
         """
-        a
+        Removes the last item in the input_box list
 
         Args:
-            a
+            Nothing
 
         Returns:
-            a
+            Nothing
         """
         if len(self.input_boxes) > 0:
             self.input_boxes.pop()
 
     def produce_and_store_mask(self, mask_class):
         """
-        a
+        First checks to see if the context image changed, if it did then
+        inform SAM. Then given the current input_boxes produce a SAM mask.
+        Using the SAM mask produce an id mask and store that mask depending
+        on the masks class.
 
         Args:
-            a
+            mask_class (str): specifies nucleus or cytoplasm
 
         Returns:
-            a
+            Nothing
         """
         from src.fishnet import FishNet
         if np.array_equal(self.prepared_img, self.prev_prepared_img):
@@ -236,13 +245,13 @@ class ManualSamCellSegmenter(AbstractNode):
 
     def setup_sam(self):
         """
-        a
+        Prepares SAM to work with an augmented approach
 
         Args:
-            a
+            Nothing
 
         Returns:
-            a
+            Nothing
         """
         from src.fishnet import FishNet
         FishNet.sam_model.setup_augmented_mask_pred()
@@ -250,13 +259,15 @@ class ManualSamCellSegmenter(AbstractNode):
 
     def soft_reset(self):
         """
-        a
+        Perform a "soft reset" which dumps all the input_boxes, reverts
+        the current image to the prepared image, and set the segment
+        image to be a blank image.
 
         Args:
-            a
+            Nothing
 
         Returns:
-            a
+            Nothing
         """
         self.input_boxes = []
         self.curr_img = self.prepared_img.copy()
@@ -264,85 +275,89 @@ class ManualSamCellSegmenter(AbstractNode):
 
     def reset_boxes(self):
         """
-        a
+        Empties input_boxes
 
         Args:
-            a
+            Nothing
 
         Returns:
-            a
+            Nothing
         """
         self.input_boxes = []
 
     def gui_update_img(self):
         """
-        a
+        Informs the GUI of the updated current image
 
         Args:
-            a
+            Nothing
 
         Returns:
-            a
+            Nothing
         """
         self.gui.update_img(self.curr_img)
 
     def update_bboxes(self, bboxes):
         """
-        a
+        Updates input_boxes with the given list
 
         Args:
-            a
+            bboxes (list): list of bboxes
 
         Returns:
-            a
+            Nothing
         """
         self.input_boxes = bboxes
 
     def push_box(self, box):
         """
-        a
+        Appends a box to the end of input_boxes
 
         Args:
-            a
+            box (list): 4 integer representation of a box
 
         Returns:
-            a
+            Nothing
         """
         self.input_boxes.append(box)
 
     def get_curr_img(self):
         """
-        a
+        Returns the current image
 
         Args:
-            a
+            Nothing
 
         Returns:
-            a
+            ndarray: current image presented on GUI
         """
         return self.curr_img
 
     def get_segment_img(self):
         """
-        a
+        Returns the segment_img
+        
 
         Args:
-            a
+            Nothing
 
         Returns:
-            a
+            ndarray: segmentation representation of current image
         """
         return self.segment_img
 
     def process_img(self):
         """
-        a
+        If there are no input_boxes do nothing. If the prepared image has 
+        changed then inform SAM of the new context image. Have SAM return mask
+        data. Convert the mask data into a mask id image and then generate
+        the corresponding segmentation and outline images
 
         Args:
-            a
+            Nothing
 
         Returns:
-            a
+            Nothing
         """
         from src.fishnet import FishNet
         if len(self.input_boxes) == 0:
@@ -367,13 +382,14 @@ class ManualSamCellSegmenter(AbstractNode):
 
     def apply_sam_pred(self):
         """
-        a
+        References FishNet to get the global SAM object to request a mask
+        computation
 
         Args:
-            a
+            Nothing
 
         Returns:
-            a
+            list: SAM input data augmentated mask output
         """
         from src.fishnet import FishNet
         masks = FishNet.sam_model.get_augmented_mask_pred(self.input_boxes)
@@ -381,13 +397,17 @@ class ManualSamCellSegmenter(AbstractNode):
 
     def get_likely_child_nuc_id(self, nuc_cyto_id_activated):
         """
-        a
+        Given a a cyto activation representation find the nucleus that is most
+        likely the true nucleus of this cytoplasm. Does this based on the
+        nucleus with the largest are present
 
         Args:
-            a
+            nuc_cyto_id_activated (ndarray): nucleus id matrix that has been
+            "activated" by multiplying it by a single cytoplasm
 
         Returns:
-            a
+            int: the nucleus id of the best nucleus
+            int: the area of the best nucleus
         """
         possible_child_nuc_ids = np.unique(nuc_cyto_id_activated)
         first = True
@@ -410,13 +430,17 @@ class ManualSamCellSegmenter(AbstractNode):
 
     def stitch_cells(self):
         """
-        a
+        Given a nuclei mask id and a cyto plasm mask id this method assumes
+        the cytoplasm as the parent and tries to find a child nucleus. 
+        If a child nucleus is found but the cytoplasm id is currently taken
+        by another nucleus swap the ids of the nuclei so the child nucleus
+        has a matching id with the cytoplasm
 
         Args:
-            a
+            Nothing
 
         Returns:
-            a
+            boolean: Always True
         """
         temp_nuc_id = -1
         stitched_nuc_id_mask = None
@@ -490,13 +514,16 @@ class ManualSamCellSegmenter(AbstractNode):
 
     def remove_nucleus_from_cytoplasm_mask(self, after_stitch):
         """
-        a
+        Cytoplasm id mask by default encompasses the entire cell area which
+        helps with finding the nucleus that belongs to the cytoplasm. After
+        the stich has been complete we want to isolate the part of the cell
+        that is just the cytoplasm so we remove the nucleus from it.
 
         Args:
-            a
+            Nothing
 
         Returns:
-            a
+            Nothing
         """
         if not after_stitch:
             return
@@ -514,13 +541,14 @@ class ManualSamCellSegmenter(AbstractNode):
 
     def remove_nuclei_with_no_cyto(self):
         """
-        a
+        After a stitch has occured removed all nuclei without a parent
+        cytoplasm
 
         Args:
-            a
+            Nothing
 
         Returns:
-            a
+            Nothing
         """
         nuc_id_mask = self.output_pack[self.nuc_class]
         cyto_id_mask = self.output_pack[self.cyto_class]
@@ -530,13 +558,14 @@ class ManualSamCellSegmenter(AbstractNode):
         
     def remove_cyto_with_no_nuclei(self):
         """
-        a
+        After a stitch has occured we remove all cytoplasm without a child
+        nucleus
 
         Args:
-            a
+            Nothing
 
         Returns:
-            a
+            Nothing
         """
         nuc_id_mask = self.output_pack[self.nuc_class]
         cyto_id_mask = self.output_pack[self.cyto_class]
@@ -552,13 +581,15 @@ class ManualSamCellSegmenter(AbstractNode):
 
     def reset_id_sequence(self):
         """
-        a
+        After a stiching process its possible the ids have gaps in the sequence.
+        This method resets the ids such that they start from 1 to n again with 
+        no gaps
 
         Args:
-            a
+            Nothing
 
         Returns:
-            a
+            Nothing
         """
         nuc_id_mask = self.output_pack[self.nuc_class]
         cyto_id_mask = self.output_pack[self.cyto_class]
@@ -578,13 +609,16 @@ class ManualSamCellSegmenter(AbstractNode):
 
     def translate_state_into_index(self, state_dict, ind_dict):
         """
-        a
+        Given a state dict and ind dict it crates a list of indexes where
+        that state dict was True. Used for finding what channel or 
+        z axis was selected.
 
         Args:
-            a
+            state_dict (dict): 
+            ind_dict (dict): 
 
         Returns:
-            a
+            list: 
         """
         ind_list = []
         for state_k in state_dict.keys():
@@ -596,13 +630,16 @@ class ManualSamCellSegmenter(AbstractNode):
     # Currently Assuming canvas doesnt need to change
     def reinitialize_base_img(self, channel_states, z_states):
         """
-        a
+        Reinitializes the base image based on the given channel_states 
+        and z_states
+        
 
         Args:
-            a
+            channel_states (dict): GUI data on what channel has been turned on
+            z_states (dict): GUI data on what z axis has been turned on
 
         Returns:
-            a
+            Nothing
         """
         from src.fishnet import FishNet
         channels = self.translate_state_into_index(channel_states, FishNet.channel_meta)
@@ -625,27 +662,28 @@ class ManualSamCellSegmenter(AbstractNode):
         self.curr_img = self.prepared_img.copy()
         self.segment_img = np.zeros(self.prepared_img.shape)
 
+    # Not Defined
     def plot_output(self):
         """
-        a
+        Plots the output
 
         Args:
-            a
+            Nothing
 
         Returns:
-            a
+            Nothing
         """
         pass
 
     def save_id_masks(self):
         """
-        a
+        Writes the id masks to disk
 
         Args:
-            a
+            Nothing
 
         Returns:
-            a
+            Nothing
         """
         nuc_id_mask = self.output_pack[self.nuc_class]
         cyto_id_mask = self.output_pack[self.cyto_class]
@@ -656,13 +694,14 @@ class ManualSamCellSegmenter(AbstractNode):
 
     def save_output(self):
         """
-        a
+        Writes a variety of image representations generated by the final
+        id masks to disk.
 
         Args:
-            a
+            Nothing
 
         Returns:
-            a
+            Nothing
         """
         self.save_id_masks()
         base_shape = self.default_size_img.shape
