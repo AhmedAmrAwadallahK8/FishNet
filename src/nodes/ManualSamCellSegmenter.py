@@ -12,22 +12,68 @@ import src.image_processing as ip
 import src.sam_processing as sp
 from PIL import Image, ImageTk
 
-"""
-ManualSamCellSegmenter output format is a length 2 dictionary.
-Use the key ManualCellMaskPack fetch the data
-The two keys within ManualCellMaskPack are below
-Contains Key nucleus which contains nucleus mask id data
-Contains Key cytoplasm which contains cytoplasm mask id data
-
-"""
-
 class ManualSamCellSegmenter(AbstractNode):
     """
+    This node is responsible for setting up the GUI and works with the gui
+    to recieve box input that gets processed by SAM. The SAM masks are
+    then processed and returned to the GUI. Like other nodes once the
+    all critical functions are done it stores data in fishnet and writes
+    data to disk.
+    ManualSamCellSegmenter output format is a length 2 dictionary.
+    Use the key ManualCellMaskPack fetch the data
+    The two keys within ManualCellMaskPack are below
+    Contains Key nucleus which contains nucleus mask id data
+    Contains Key cytoplasm which contains cytoplasm mask id data
 
     Global Variables:
     Global Functions:
     Attributes:
+        targ_pixel_area (int):
+        cell_figures_folder (str):
+        id_masks_folder (str):
+        input_boxes (list):
+        input_points (list):
+        input_labels (list):
+        gui (Tkinter GUI):
+        default_size_img (ndarray):
+        prepared_img (ndarray):
+        prev_prepared_img (ndarray): 
+        curr_img (ndarray):
+        segment_img (ndarray):
+        nuc_class (str):
+        cyto_class (str):
+        output_pack (dict):
+        valid_gui_exit (boolean):
+        cell_figures_path (str):
+        id_mask_path (str):
     Methods:
+        create_folder(folder_name):
+        set_valid_gui_exit():
+        get_nuc_seg():
+        pop_boxes():
+        produce_and_store_mask(mask_class):
+        setup_sam():
+        soft_reset():
+        reset_boxes():
+        gui_update_img():
+        update_bboxes():
+        push_box(box):
+        get_curr_img():
+        get_segment_img():
+        process_img():
+        apply_sam_pred():
+        get_likely_child_nuc_id(nuc_cyto_id_activated):
+        stitch_cells()
+        remove_nucleus_from_cytoplasm_mask(after_stitch):
+        remove_nuclei_with_no_cyto():
+        remove_cyto_with_no_nuclei():
+        reset_id_sequence():
+        process():
+        translate_state_into_index(state_dict, ind_dict)
+        reinitialize_base_img(channel_states, z_states)
+        initialize_node():
+        save_id_masks():
+        save_output():
     """
     def __init__(self):
         from src.fishnet import FishNet
