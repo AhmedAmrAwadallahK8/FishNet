@@ -356,6 +356,29 @@ def generate_contour_img(mask_img):
         cv2.drawContours(contour_img, [c], -1, contour_col, thickness=2)
     return contour_img
 
+def generate_dot_contour_img(mask_img):
+    """
+    Contours a mask img, already assumes a mask image is a gray image, 
+    specialized for dots.
+
+    Args:
+        mask_img (ndarray): numpy array containing mask data
+
+    Returns:
+        ndarray: contoured array
+
+    """
+    contour_col = (0, 0, 255)
+    contour_shape = (mask_img.shape[0], mask_img.shape[1], 3)
+    contour_img = np.zeros(contour_shape, dtype=np.uint8)
+    gray_mask = cv2.cvtColor(mask_img.astype(np.uint8), cv2.COLOR_BGR2GRAY)
+    
+    cnts = cv2.findContours(gray_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cnts = cnts[0] if len(cnts) == 2 else cnts[1]
+    for c in cnts:
+        cv2.drawContours(contour_img, [c], -1, contour_col, thickness=2)
+    return contour_img
+
 def generate_advanced_contour_img(mask_img):
     """
     Contours a mask img, already assumes a mask image is a gray image.

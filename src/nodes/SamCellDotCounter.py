@@ -39,6 +39,7 @@ class SamCellDotCounter(AbstractNode):
         nuc_counts (dict): counts for nucleus stored by cell id
         cyto_counts (dict): counts for cytoplasm stored by cell id
         seg_imgs (dict): dot segmentations stored by cell id
+        ctr_imgs (dict): contour representation stored by cell id
         raw_crop_imgs (dict): raw crops of cells stored by cell id
         process_times (list): list of computation times
         total_cell_count (int): number of cells being processed
@@ -72,6 +73,8 @@ class SamCellDotCounter(AbstractNode):
         store_raw_crop(id_bbox, cell_id): locally stores cell crop
         store_segmentation(cell_part, cell_id, orig_img, segmentation): locally
         stores segmentation image
+        store_contour(cell_part, cell_id, orig_img, segmentation): locally
+        stores contour image
         get_segmentation_bbox(single_id_mask): returns the bounding box around
         a segmentation
         get_dot_count_and_seg_quilt(img_subset): gets the dot count for an
@@ -106,6 +109,7 @@ class SamCellDotCounter(AbstractNode):
         self.nuc_counts = {}
         self.cyto_counts = {}
         self.seg_imgs = {}
+        self.ctr_imgs = {}
         self.raw_crop_imgs = {}
         save_folder = FishNet.save_folder + self.save_folder
         self.process_times = []
@@ -233,6 +237,7 @@ class SamCellDotCounter(AbstractNode):
             elif cell_part == self.nucleus_key:
                 self.nuc_counts[cell_id] = dot_count
             self.store_segmentation(cell_part, cell_id, img_crop, seg)
+            self.store_contour(cell_part, cell_id, img_crop, seg)
             if cell_part == self.cytoplasm_key:
                 self.store_raw_crop(id_bbox, cell_id)
 
@@ -442,7 +447,7 @@ class SamCellDotCounter(AbstractNode):
 
     def save_segs(self):
         """
-        Writes dot segmentation and raw crop images to disk
+        Writes dot segmentation, raw crop images, and contours to disk
  
         Args:
             Nothing
@@ -456,6 +461,9 @@ class SamCellDotCounter(AbstractNode):
         for save_name in self.raw_crop_imgs:
             img_path = self.save_folder + save_name
             self.save_img(self.raw_crop_imgs[save_name], img_path)
+        for save_name in self.ctr_imgs:
+            img_path = self.save_folder + save_name
+            self.save_img(self.ctr_imgs[save_name], img_path)
 
     def store_raw_crop(self, id_bbox, cell_id):
         """
@@ -501,6 +509,24 @@ class SamCellDotCounter(AbstractNode):
         img_overlay = np.where(segmentation > 0, segmentation, orig_img)
         save_name = f"cell{cell_id}_{cell_part}_z{self.z}_{self.c}_seg.png"
         self.seg_imgs[save_name] = img_overlay
+
+    def store_contour(self, cell_part, cell_id, orig_img, segmentation):
+        """
+        Locally stores a contour image
+
+        Args:
+            cell_part (str): string that specifies what cell part is being processed
+            cell_id (int): cell id the cell part belongs to
+            orig_img (ndarray): entire image the cell exists within
+            segmentation (ndarray): cell part segmentation
+
+        Returns:
+            Nothing
+        """
+        img_contour = ip.generate_dot_contour_img(segmentation)
+        img_contour = np.where(img_contour > 0, img_contour, orig_img)
+        save_name = f"cell{cell_id}_{cell_part}_z{self.z}_{self.c}_ctr.png"
+        self.ctr_imgs[save_name] = img_contour
 
     def get_segmentation_bbox(self, single_id_mask):
         """
