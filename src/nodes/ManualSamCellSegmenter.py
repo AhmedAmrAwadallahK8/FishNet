@@ -459,11 +459,69 @@ class ManualSamCellSegmenter(AbstractNode):
 
 class MSSGui():
     """
+    The GUI object. Handles everything to do with displaying an image, 
+    rectangles, removal of rectangles, and reporting rectangle coordinates to
+    the processing node. Has 3 stages. Nucleus Segmentation, Cytoplasm 
+    Segmentation, background save image selection.
+    
 
     Global Variables:
     Global Functions:
     Attributes:
+        channel_states (dict): flag for whether a channel has been selected or
+        not
+        z_states (dict): flag for whether a z axis has been selected or not
+        canv_width (int): width of canvas
+        canv_height (int): height of canvas
+        app_width (int): width of app
+        app_height (int): height of app
+        images_reps (int): the number of stages. 3 total
+        curr_rep (int): current stage
+        master_node (ManualSamCellSegmenter): the node that created this GUI
+        root (Tk): root object for tkinter
+        curr_img (PhotoImage): current displayed image
+        canvas (Canvas): canvas object
+        rect (RectTracker): RectTracker object
+        image_container (Tkinter Image): realizes the image in the canvas
+        button_frame (Frame): frame that contains all buttons
+        continue_button (Button): when clicked continues to next stage
+        reset_button (Button): when clicked resets all rectangles and image
+        segment_view_button (Button): when clicked shows segmentations
+        default_view_button (Button): when clicked shows image and outlines
+        segment_button (Button): segments the image given current boxes
+        nuc_overlay_btn (Button): when clicked overlays segmented nuclei
+        channel_buttons (Button): buttons pertaining to each channel
+        z_buttons (Button): buttons pertaining to each z axis
+        curr_view (str): string that specifies what the current view is
+        overlay_with_nuc_seg (boolean): state of the nucleus overlay
+        
     Methods:
+        z_adjustment(btn_name): when a z button is pressed change its color
+        and change the image to now include or exclude the z axis
+        chan_adjustment(btn_name): when a channel button is pressed change
+        its color and change the image to now include or exclude the 
+        channel
+        nuc_overlay(): overlays the image with nucleus segmentations. Only
+        works during cytoplasm stage
+        get_bboxes(): returns all rectangle bboxes
+        remove_tiny_bboxes(bboxes): removes bboxes that are smaller than a
+        minimum value
+        segment(): using the current state segments the image
+        refresh_view(): refreshes the view
+        reset(): resets the stage
+        continue_program(): moves on to the next stage
+        get_mask_class_from_user(): returns what object the stage is segmenting
+        exit_gui(): destroys the gui
+        remove_all_boxes(): removes all rectangles from canvas
+        segment_view(): display segmentation view
+        default_view(): display the default view
+        segment_box(): segment a single box
+        run(): runs the GUI
+        update_img(img_arr): updates the image within the Canvas
+        on_click(event): if cursor is within a rectangle and right click is 
+        pressed deletes the rectangle
+        on_mouse_over(event): highlights a rectangle as red if its highlighted
+        otherwise keeps them black
     """
     def __init__(self, owner, canv_height, canv_width):
         from src.fishnet import FishNet
@@ -578,7 +636,22 @@ class MSSGui():
         self.canvas.bind('<Button-3>', self.on_click, '+')
         self.overlay_with_nuc_seg = False
 
+    # probably a way to combine z_adjustment and chan_adjustment into one
+    # method
     def z_adjustment(self, btn_name):
+        """
+        When a z button is clicked change the color to reflect whether its
+        being turned on or off(green for on, red for off). Then report the
+        updated z states and channel states to the ManualSamCellSegmenter
+        to get an updated image. Finally reset the stage under the new
+        image context
+        
+        Args:
+            btn_name (str): name of the button that was pressed
+
+        Returns:
+            Nothing
+        """
         btn = self.z_buttons[btn_name]
         self.z_states[btn_name] = not self.z_states[btn_name] 
         if self.z_states[btn_name]:
@@ -591,6 +664,19 @@ class MSSGui():
         self.reset()
 
     def chan_adjustment(self, btn_name):
+        """
+        When a channel button is clicked change the color to reflect whether its
+        being turned on or off(green for on, red for off). Then report the
+        updated z states and channel states to the ManualSamCellSegmenter
+        to get an updated image. Finally reset the stage under the new
+        image context
+        
+        Args:
+            btn_name (str): name of the button that was pressed
+
+        Returns:
+            Nothing
+        """
         btn = self.channel_buttons[btn_name]
         self.channel_states[btn_name] = not self.channel_states[btn_name] 
         if self.channel_states[btn_name]:
@@ -603,6 +689,18 @@ class MSSGui():
         self.reset()
 
     def nuc_overlay(self):
+        """
+        Displays the nucleus segmentations processed in the nucleus 
+        segmentation stage as an overlay. Changes the color to reflect
+        if this buttons is on or off
+        Only works during the cytoplasm step.
+        
+        Args:
+            Nothing
+
+        Returns:
+            Nothing
+        """
         if self.curr_rep == 1: #Cyto segmentation step
             self.overlay_with_nuc_seg = not self.overlay_with_nuc_seg
             self.refresh_view()
@@ -616,6 +714,16 @@ class MSSGui():
 
 
     def get_bboxes(self):
+        """
+        Collects the bounding boxes from all currently drawn rectangles
+        and returns them
+        
+        Args:
+            Nothing
+
+        Returns:
+            list: bboxes
+        """
         bboxes = []
         boxes = []
         boxes.extend(self.canvas.find_withtag(self.box_tag))
@@ -624,6 +732,17 @@ class MSSGui():
         return bboxes
 
     def remove_tiny_bboxes(self, bboxes):
+        """
+        Given a list of bboxes removes the ones that are smaller than the
+        minimum area. This is to help deal with situations where a user 
+        draws a rectangle too small to delete.
+        
+        Args:
+            bboxes (list): list of bboxes
+
+        Returns:
+            list: bboxes that are larger than min area
+        """
         min_area = 100
         bboxes_pruned = []
         for bbox in bboxes:
@@ -634,6 +753,19 @@ class MSSGui():
           
 
     def segment(self):
+        """
+        Requests the ManualSamCellSegmenter to take the current bboxes 
+        and image and produces a segmentation. After segmentation is
+        produced refresh the view.
+        Only works during stage 0 and 1 (nucleuss and cytoplasm segmentation
+        step)
+        
+        Args:
+            Nothing
+
+        Returns:
+            Nothing
+        """
         if self.curr_rep == 2:
             print("This button only works on a segmentation step")
             return
@@ -644,6 +776,15 @@ class MSSGui():
         self.refresh_view()
 
     def refresh_view(self):
+        """
+        Refreshes the view with the updates segmentation data.
+        
+        Args:
+            Nothing
+
+        Returns:
+            Nothing
+        """
         if self.curr_view == "default":
             img_arr = self.master_node.get_curr_img()
             if self.overlay_with_nuc_seg:
@@ -655,11 +796,32 @@ class MSSGui():
             self.update_img(img_arr)
 
     def reset(self):
+        """
+        Removes all rectangles and reverts the image to its base state before
+        any segmentations.
+        
+        Args:
+            Nothing
+
+        Returns:
+            Nothing
+        """
         self.master_node.soft_reset()
         self.refresh_view()
         self.remove_all_boxes()
 
     def continue_program(self):
+        """
+        Moves on to the next stage. This involves reseting the image,
+        rectangles, and title. After stage 2(the final image selection
+        step) the gui is considered finished and closes itself.
+        
+        Args:
+            Nothing
+
+        Returns:
+            Nothing
+        """
         if self.curr_rep < 2:
             bboxes = self.get_bboxes()
             self.master_node.update_bboxes(bboxes)
@@ -681,21 +843,58 @@ class MSSGui():
             self.reset()
 
     def get_mask_class_from_user(self):
+        """
+        Returns the cell part being processed by the current stage
+        
+        Args:
+            Nothing
+
+        Returns:
+            str: cell part being processed
+        """
         if self.curr_rep == 0:
             return "nucleus"
         elif self.curr_rep == 1:
             return "cytoplasm"
 
     def exit_gui(self):
+        """
+        Closes the GUI
+        
+        Args:
+            Nothing
+
+        Returns:
+            Nothing
+        """
         self.root.destroy()
 
     def remove_all_boxes(self):
+        """
+        Removes all user drawn rectangles/boxes 
+        
+        Args:
+            Nothing
+
+        Returns:
+            Nothing
+        """
         boxes = []
         boxes.extend(self.canvas.find_withtag(self.box_tag))
         for box in boxes:
             self.canvas.delete(box)
         
     def segment_view(self):
+        """
+        Displays the colored segmentation view. Does not work on the background
+        image selection stage (stage 2).
+        
+        Args:
+            Nothing
+
+        Returns:
+            Nothing
+        """
         if self.curr_rep == 2:
             print("This button only works on a segmentation step")
             return
@@ -703,21 +902,70 @@ class MSSGui():
         self.refresh_view()
         
     def default_view(self):
+        """
+        Displays the default view which is the image with outlines if a 
+        segmentation was performed.
+        
+        Args:
+            Nothing
+
+        Returns:
+            Nothing
+        """
         self.curr_view = "default"
         self.refresh_view()
 
     def segment_box(self, box):
+        """
+        NOT DEFINED
+        Segments a single box
+        
+        
+        Args:
+            box (list): bounding box
+
+        Returns:
+            Nothing
+        """
         pass
 
     def run(self):
+        """
+        Starts the GUI
+        
+        Args:
+            Nothing
+
+        Returns:
+            Nothing
+        """
         self.root.mainloop()
 
     def update_img(self, img_arr):
+        """
+        Updates the displayed image using the argument image
+        
+        Args:
+            img_arr (ndarray): numpy array containg image data
+
+        Returns:
+            Nothing
+        """
         img_arr = img_arr.astype(np.uint8)
         self.curr_img =  ImageTk.PhotoImage(image=Image.fromarray(img_arr))
         self.canvas.itemconfig(self.img_container, image=self.curr_img)
 
     def on_click(self, event):
+        """
+        When a right click event occurs check to see if the cursor is within
+        a rect. If it is then delete the rectangle.
+        
+        Args:
+            event (Tkinter Event): right mouse button click
+
+        Returns:
+            Nothing
+        """
         x = event.x
         y = event.y
         selected_rect = self.rect.mouse_hit_test([x,y], tags=[self.box_tag])
@@ -725,6 +973,16 @@ class MSSGui():
             self.canvas.delete(selected_rect)
 
     def on_mouse_over(self, event):
+        """
+        When the cursor mouses over a rectangle then change the color of the
+        rectangle to be red. Return to black when the mouse leaves.
+
+        Args:
+            event (Tkinter Event): right mouse button click
+
+        Returns:
+            Nothing
+        """
         x = event.x
         y = event.y
         selected_rect = self.rect.mouse_hit_test([x,y], tags=[self.box_tag])
