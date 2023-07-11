@@ -599,7 +599,7 @@ class SamCellDotCounter(AbstractNode):
         from src.fishnet import FishNet
         mask = FishNet.sam_model.get_auto_mask_pred(img_subset)
         mask_img, dot_count = self.process_sam_mask(img_subset, mask)
-        seg = ip.generate_single_colored_mask(mask_img)
+        seg = ip.generate_colored_mask(mask_img)
         return dot_count, seg
 
     def coalesce_img_seq(self, img, img_seq):
@@ -669,7 +669,7 @@ class SamCellDotCounter(AbstractNode):
             masks = FishNet.sam_model.get_auto_mask_pred(img)
             mask_img, dot_counts = self.process_sam_mask(img, masks)
             total_dot_count += dot_counts
-            seg = ip.generate_single_colored_mask(mask_img)
+            seg = ip.generate_colored_mask(mask_img)
             seg_seq.append(seg)
         return seg_seq, total_dot_count
 
@@ -695,7 +695,7 @@ class SamCellDotCounter(AbstractNode):
         instance_id = 0
         for m in sam_mask:
                 mask_sum = np.sum(m["segmentation"])
-                if mask_sum/total_pix > 0.05:
+                if mask_sum/total_pix > 0.01:
                     continue
                 instance_id += 1
                 mask_instance = np.zeros(mask_shape)

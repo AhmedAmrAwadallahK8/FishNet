@@ -368,7 +368,7 @@ def generate_dot_contour_img(mask_img):
         ndarray: contoured array
 
     """
-    contour_col = (0, 0, 255)
+    contour_col = (1, 1, 255)
     contour_shape = (mask_img.shape[0], mask_img.shape[1], 3)
     contour_img = np.zeros(contour_shape, dtype=np.uint8)
     gray_mask = cv2.cvtColor(mask_img.astype(np.uint8), cv2.COLOR_BGR2GRAY)
